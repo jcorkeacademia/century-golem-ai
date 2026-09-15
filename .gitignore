@@ -1,0 +1,37 @@
+# --- Card-art assets (426 MB; regenerable from make_cards.py / make_merchants.py) ---
+# Source photos and generated card PNGs are kept on disk but never tracked.
+golem-cards/
+engine/out/
+engine/out_merchants/
+engine/photos/
+engine/photos_merchants/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# --- Node / Vite ---
+node_modules/
+web/dist/
+.vite/
+
+# --- Logs ---
+*.log
+
+# --- Bot run outputs (Step 5+): keep summaries, drop raw run data ---
+results/**
+!results/
+!results/**/
+!results/*.md
+!results/**/summary.json
+
+# --- Editor / OS ---
+.claude/settings.local.json
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

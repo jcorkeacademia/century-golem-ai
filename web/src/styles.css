@@ -1,0 +1,2505 @@
+:root {
+  --y: #e8d54a;
+  --g: #3fae4a;
+  --b: #3fa7d6;
+  --m: #b5457a;
+  /* The pale "board" canvas behind everything (Carrom-board reference) —
+     panels (opponent boxes, hand box) stay dark on top of it, per
+     the scoped-vs-full-theme call. --well is the old --bg value, kept for
+     the handful of spots (caravan-grid inset, empty golem-progress dot,
+     seat-tag pill) that use a dark background to look *recessed inside* a
+     dark panel — those must stay dark regardless of the canvas color. */
+  --bg: #e8dcc3;
+  --well: #1c1f26;
+  /* Walnut wood — the panel is the darker board/tray color; card-slot is
+     ~8% lighter, for the individual card rectangles and golem-card slots
+     sitting inside those panels (so they read as a raised layer on top). */
+  --panel: #3e3226;
+  --card-slot: #4a3c2e;
+  --panel-active: #33405a;
+  --text: #eee;
+  --muted: #9aa4b2;
+  --border: #3a4150;
+  --turn-gold: #e0b155;
+  --gold-deep: #c08f32;
+  /* Whichever opponent (bot) is currently acting — a bolder, more
+     attention-grabbing cue than the gold used elsewhere, since these turns
+     now play out on their own (main.py's auto-play loop) and the person
+     watching needs an unmissable "look here" signal, not a subtle one. */
+  --turn-active-red: #e0453f;
+  --turn-active-red-deep: #a8302b;
+  /* Player-mat-only palette (MePanel) — a warmer, slightly refined variant
+     of --panel/--card-slot/--border used nowhere else, so this doesn't
+     shift the look of opponent panels, the action strip, etc. */
+  --mat: #3e342b;
+  --mat-hi: #54473a;
+  --mat-lo: #2a241e;
+  --edge: #6b5a44;
+  /* Join/waiting screens — aliases onto the same dark-walnut-panel-with-
+     grain-and-gold language every dialog/mat in the actual game already
+     uses (originally this was a deliberately light "parchment card on a
+     pale canvas" instead; that read as a generic light-mode web app card
+     dropped in front of a warm dark board game, so it's gone). Kept as its
+     own named set (rather than using --dialog- or --mat tokens directly
+     everywhere) so this screen's palette can still drift independently
+     later. */
+  --join-card: var(--dialog-panel);
+  --join-line: var(--dialog-border);
+  --join-ink: var(--dialog-text);
+  --join-ink-dim: var(--dialog-muted);
+  --join-gold-deeper: var(--dialog-gold-border);
+  /* Trade dialog only — flat/utilitarian per trade_dialog_prompt.md ("no
+     gradients, no glows... matching the live board" with its own sampled
+     hex values), deliberately distinct from --panel/--border so it doesn't
+     shift the warm-textured look everywhere else. Reused generically as
+     .dialog-* for whichever future choice dialog (acquire payment, upgrade
+     target) adopts the same shape. */
+  --dialog-panel: #4a4034;
+  --dialog-border: #6b5d49;
+  --dialog-well: #332c23;
+  --dialog-socket: #241f19;
+  --dialog-text: #e8e2d4;
+  --dialog-muted: #9a8f7c;
+  --dialog-gold: #c9a24d;
+  --dialog-gold-border: #a8823a;
+  --dialog-gold-ink: #2b2418;
+  --dialog-btn: #635641;
+  --dialog-btn-disabled: #3a322a;
+  --dialog-btn-disabled-border: #453d33;
+  --dialog-btn-disabled-text: #6a6052;
+  /* Procedural grain (feTurbulence) as a data URI so there's no image asset
+     to host — reused wherever a surface needs to read as tabletop material
+     instead of a flat fill. */
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.62' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23f)' opacity='0.5'/%3E%3C/svg%3E");
+  --radius-card: 10px;
+  --card-w: 108px;
+  --card-w-compact: 25px;
+  --row-gap: 0.65rem;
+  --deck-w: calc(var(--card-w) * 1.4);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  background-image: var(--noise);
+  background-blend-mode: multiply;
+  color: var(--text);
+  font-family: system-ui, sans-serif;
+}
+
+.connecting-screen {
+  /* Only screen with text sitting directly on the pale canvas (everything
+     else lives inside a dark panel) — body's --text is light, so this one
+     spot needs its own dark color to stay legible. */
+  padding: 2rem;
+  color: var(--well);
+}
+/* Same pale-canvas context as .connecting-screen, so it needs its own dark
+   outline rather than the dark-panel-oriented .join-btn-secondary — a
+   stuck connection (bad room code, server unreachable) used to have no way
+   out short of closing the tab. */
+.connecting-leave-btn {
+  margin-top: 1rem;
+  padding: 10px 22px;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--well);
+  color: var(--well);
+}
+.connecting-leave-btn:hover {
+  background: rgba(28, 31, 38, 0.08);
+}
+
+.error-text {
+  color: #c23838;
+}
+
+/* ---------- app shell / top bar ---------- */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ---------- radial table layout ---------- */
+
+/* Base shape = 4 opponents (5-player game): stacked pairs on both sides.
+   Fewer opponents (Board.jsx's layout-opp-N class, N = opponentOrder.length)
+   collapse one or both sides into a single full-height slot rather than
+   leaving half of a stacked pair empty next to the real panel — see the
+   .layout-opp-1/2/3 overrides below and the matching .area-leftFull/
+   .area-rightFull rules. */
+.table-layout {
+  display: grid;
+  grid-template-columns: minmax(170px, 230px) 1fr minmax(170px, 230px);
+  grid-template-rows: minmax(auto, 1fr) minmax(auto, 1fr) auto auto;
+  grid-template-areas:
+    'seat2 center seat3'
+    'seat1 center seat4'
+    'me me me'
+    'strip strip strip';
+  gap: 0.3rem;
+  padding: 0.3rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+/* 3 opponents: the normal stacked pair stays on the left; the right side
+   collapses from seat3/seat4 into one centered, full-height slot. */
+.table-layout.layout-opp-3 {
+  grid-template-areas:
+    'seat2 center rightFull'
+    'seat1 center rightFull'
+    'me me me'
+    'strip strip strip';
+}
+/* 2 opponents: one full-height, vertically centered slot per side. */
+.table-layout.layout-opp-2 {
+  grid-template-areas:
+    'leftFull center rightFull'
+    'leftFull center rightFull'
+    'me me me'
+    'strip strip strip';
+}
+/* 1 opponent: a single full-height, centered slot on the left — the right
+   column is simply left unused rather than reserving dead space for it. */
+.table-layout.layout-opp-1 {
+  grid-template-areas:
+    'leftFull center .'
+    'leftFull center .'
+    'me me me'
+    'strip strip strip';
+}
+
+.area-seat1 { grid-area: seat1; display: flex; align-items: stretch; justify-content: flex-start; }
+.area-seat2 { grid-area: seat2; display: flex; align-items: stretch; justify-content: flex-start; }
+.area-seat3 { grid-area: seat3; display: flex; align-items: stretch; justify-content: flex-end; }
+.area-seat4 { grid-area: seat4; display: flex; align-items: stretch; justify-content: flex-end; }
+/* The collapsed full-height slots center their panel vertically (rather
+   than stretching it) — a lone opponent panel sitting naturally-sized in
+   the middle of the available height, not stretched taller or pinned to
+   one edge with a gap next to it. */
+.area-leftFull { grid-area: leftFull; display: flex; align-items: center; justify-content: flex-start; }
+.area-rightFull { grid-area: rightFull; display: flex; align-items: center; justify-content: flex-end; }
+.area-center { grid-area: center; display: flex; min-height: 0; min-width: 0; }
+.area-me { grid-area: me; min-height: 0; }
+/* Sticky rather than a plain grid row — .table-layout is the scrolling
+   container (overflow-y: auto above), and on a tall board (opponent panels
+   + the player's own band can together exceed the viewport) a plain row
+   could sit below the fold, making Confirm/Cancel/Undo unreachable without
+   scrolling. Pinning it to the bottom of the scrollport keeps it reachable
+   regardless of how tall the content above grows. */
+.area-strip {
+  grid-area: strip;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+
+/* ---------- opponent panels ---------- */
+
+.opponent-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  width: 90%;
+  cursor: pointer;
+  /* Declared unconditionally (transparent/zero) so .current-turn toggling
+     the color below transitions smoothly instead of the border snapping
+     in and out — same technique as the merchant row's drag highlighting. */
+  box-shadow: 0 0 0 0 transparent;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.opponent-panel:hover {
+  border-color: #7f8ba3;
+  box-shadow: 0 0 0 2px rgba(111, 138, 184, 0.35);
+}
+
+/* Active-turn cue (CLAUDE.md UI reference: "active-player highlight"),
+   keyed off player.seat === state.current. A bot's turn now plays itself
+   out automatically (main.py's auto-play loop) with nothing for the human
+   to click, so the whole panel gets a bold red border + glow — loud enough
+   to follow at a glance which of the 4 bots is currently acting — rather
+   than just the thin gold turnbar used elsewhere for "this is active." The
+   strip is always present at the same height so a panel never resizes when
+   turn passes — only its color changes. */
+.opponent-turnbar {
+  height: 4px;
+  background: transparent;
+}
+.opponent-panel.current-turn {
+  border-color: var(--turn-active-red);
+  box-shadow: 0 0 0 3px rgba(224, 69, 63, 0.55), 0 0 22px rgba(224, 69, 63, 0.35);
+}
+.opponent-panel.current-turn .opponent-turnbar {
+  background: var(--turn-active-red);
+}
+
+.opponent-body {
+  padding: 0.5rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.seat-tag {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  background: var(--well);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.first-player-marker {
+  font-size: 0.6rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: #3a4150;
+  color: var(--muted);
+}
+
+.opponent-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+.opponent-who {
+  flex: 1;
+  min-width: 0;
+}
+.opponent-avatar-wrap {
+  position: relative;
+  width: fit-content;
+  margin-bottom: 0.3rem;
+}
+/* Same "carved token" formula as .join-av, so a player's avatar looks
+   identical on the start screen and in their in-game panel (avatars.js is
+   the single shared source for hue/glyph). Matte + grained rather than a
+   glossy glass sphere — a painted wooden piece, not a rendered bubble. */
+.opponent-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--hue);
+  background-image: linear-gradient(165deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.24)), var(--noise);
+  background-blend-mode: soft-light, overlay;
+  border: 2px solid color-mix(in srgb, var(--hue) 40%, #2b2418 60%);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.3), inset 0 2px 3px rgba(0, 0, 0, 0.22), inset 0 0 0 2px rgba(60, 45, 20, 0.25);
+  filter: saturate(0.85) contrast(1.05);
+}
+.opponent-avatar-glyph {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.opponent-avatar .avatar-fallback-letter { font-size: 1rem; }
+.opponent-panel.current-turn .opponent-avatar {
+  box-shadow: 0 0 0 2px var(--turn-active-red), inset 0 0 0 2px rgba(60, 45, 20, 0.25);
+}
+/* Overlaps the avatar's corner rather than sitting in the name row, so the
+   name/status column stays exactly as narrow as the mockup calls for. */
+.opponent-first-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -8px;
+  font-size: 0.55rem;
+  padding: 0.05rem 0.28rem;
+  border-radius: 4px;
+  background: #3a4150;
+  color: var(--muted);
+}
+.opponent-name {
+  font-weight: 700;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.opponent-state {
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 1px;
+}
+.opponent-panel.current-turn .opponent-state {
+  color: var(--turn-active-red);
+}
+
+.opponent-lastcard {
+  flex: none;
+  width: 56px;
+}
+.opponent-lastcard .card-visual {
+  width: 56px;
+  animation: opponent-card-in 0.25s ease;
+}
+@keyframes opponent-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.opponent-cardface-empty {
+  width: 56px;
+  aspect-ratio: 5 / 7;
+  border-radius: var(--radius-card);
+  border: 1px dashed var(--border);
+}
+.opponent-cardlabel {
+  font-size: 0.6rem;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 3px;
+  white-space: nowrap;
+}
+
+.opponent-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.62rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 0.35rem;
+  white-space: nowrap;
+}
+/* Opponent caravan reads as the dominant block on the card (per the
+   mockup), not a small side element — full width, big circles. */
+.opponent-panel .caravan-grid {
+  width: 100%;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+}
+.opponent-panel .caravan-grid .slot {
+  width: auto;
+  height: auto;
+  aspect-ratio: 1;
+}
+
+/* Golem-progress tiles fill what used to be dead space below the caravan —
+   real GolemCard art (OpponentPanel.jsx), scaled down from the default
+   --card-w to fit a 5-column grid inside this narrow panel, with a smaller
+   points badge to match. */
+.opponent-golem-tiles {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+}
+.opponent-golem-tiles .card-visual {
+  width: 100%;
+  border-radius: 4px;
+}
+.opponent-golem-tiles .card-overlay-topright {
+  top: 2px;
+  right: 2px;
+}
+.opponent-golem-tiles .points-badge {
+  width: 14px;
+  height: 14px;
+  font-size: 0.5rem;
+}
+.golem-mini-tile.empty {
+  aspect-ratio: 0.72;
+  border-radius: 4px;
+  background: var(--well);
+  border: 1px dashed #4a4038;
+}
+
+/* Played-card mini-row: real MerchantCard art (unlike the golem tiles
+   above) since 30px is still big enough to read a thumbnail. Caps at
+   PLAYED_CAP real cards (OpponentPanel.jsx) with a "+N" tile for the rest,
+   rather than growing the row unbounded as a hand fills up. */
+.opponent-played-tiles {
+  display: flex;
+  gap: 4px;
+}
+.opponent-played-tiles .card-visual {
+  width: 30px;
+}
+.opponent-played-overflow {
+  width: 30px;
+  aspect-ratio: 5 / 7;
+  border-radius: 4px;
+  background: var(--card-slot);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  color: var(--text);
+  flex: 0 0 auto;
+}
+
+.opponent-points-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding-top: 0.35rem;
+}
+.opponent-lbl {
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+.opponent-points {
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+/* Quiet corner readout (TurnClock.jsx) — accumulated thinking time, not a
+   chess clock you're racing against, so it's tiny/muted like a timestamp:
+   visible if you look for it, not something that draws the eye every turn. */
+.turn-clock {
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  opacity: 0.75;
+}
+
+.card-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.col-label {
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+
+.golem-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  width: 54px;
+  flex: 0 0 auto;
+}
+.golem-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--well);
+  border: 1.5px solid var(--muted);
+  flex: 0 0 auto;
+}
+.golem-dot.filled {
+  background: var(--text);
+  border-color: var(--text);
+}
+
+/* ---------- player detail overlay (click an opponent panel) ---------- */
+
+.player-detail-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Above .dialog-scrim (100) on purpose: GameOverOverlay's results table
+     can open this same detail card on top of itself (clicking a row —
+     see onSelectPlayer), and it needs to actually show up there, not hide
+     behind the tally it was opened from. */
+  z-index: 110;
+  padding: 2rem;
+}
+.player-detail-modal {
+  /* Bigger cards than any other context in the app — this is the one place
+     meant to be studied, not skimmed — via the same --card-w every
+     .card-visual already sizes off of (see .card-visual, styles.css). */
+  --card-w: 170px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.2rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  max-width: min(90vw, 1100px);
+  max-height: 90vh;
+  overflow-y: auto;
+  cursor: default;
+}
+.player-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.player-detail-name {
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+.player-detail-close {
+  margin-left: auto;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.player-detail-close:hover {
+  border-color: #7f8ba3;
+  background: var(--panel-active);
+}
+.player-detail-modal .caravan-grid {
+  width: 100%;
+  gap: 10px;
+  padding: 12px;
+}
+.player-detail-modal .caravan-grid .slot {
+  width: auto;
+  height: auto;
+  aspect-ratio: 1;
+}
+.player-detail-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.player-detail-cards .card-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+/* Distinctly-named on purpose: .col-label already means "small/muted label"
+   in MePanel's own hand columns, and this view wants the opposite —
+   Caravan/Playable/Played/Golems need to actually pop in a modal meant for
+   studying someone else's whole board. */
+.detail-section-label {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--turn-gold);
+}
+/* The "in detail" view's one thing MePanel's own played pile doesn't need:
+   pointing out which of an opponent's played cards is their most recent
+   move, since you're looking here specifically to read their last action. */
+.last-played-wrap {
+  position: relative;
+}
+.last-played-wrap .card-visual {
+  box-shadow: 0 0 0 2px var(--turn-gold), 0 0 16px rgba(224, 177, 85, 0.55);
+}
+.last-played-tag {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--turn-gold);
+  color: #2a2015;
+  font-size: 0.55rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.player-detail-stats {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--border);
+}
+.player-detail-stats .points-readout {
+  margin-left: auto;
+}
+.token-counts-readout {
+  display: flex;
+  gap: 0.7rem;
+}
+.token-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.token-count .token-dot {
+  width: 9px;
+  height: 9px;
+}
+.empty-hint {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ---------- me panel ---------- */
+/* Layout matches mockups/me-panel.png: Caravan | playable+played (stacked) |
+   Golems+Coins+Points, as two side-by-side boxes. */
+
+.me-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.me-boxes {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+  min-height: max(36vh, 320px);
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.05);
+}
+/* Active-turn cue (CLAUDE.md UI reference: "active-player highlight") — a
+   gold ring + halo around the whole band, same color/logic as
+   .opponent-panel.current-turn's turn-bar. Now genuinely conditional: the
+   bot seats play themselves (main.py's auto-play loop), so this band can
+   sit at rest between the human's turns instead of always being lit.
+   Pulses once on mount, then holds at the same box-shadow declared below —
+   no jump when the animation ends. */
+@keyframes band-turn-pulse {
+  0% {
+    box-shadow: 0 0 0 2px rgba(224, 69, 63, 0), 0 0 0 rgba(224, 69, 63, 0);
+  }
+  40% {
+    box-shadow: 0 0 0 3px rgba(224, 69, 63, 0.9), 0 0 46px rgba(224, 69, 63, 0.35);
+  }
+  100% {
+    box-shadow: 0 0 0 2px rgba(224, 69, 63, 0.55), 0 0 34px rgba(224, 69, 63, 0.22);
+  }
+}
+.me-boxes.current-turn {
+  animation: band-turn-pulse 0.6s ease-out;
+  box-shadow: 0 0 0 2px rgba(224, 69, 63, 0.55), 0 0 34px rgba(224, 69, 63, 0.22);
+}
+/* Between the human's turns: still fully visible (it's still their own
+   hand/caravan/points), just visibly inert so it doesn't read as "why
+   isn't this responding to my click." */
+.me-waiting-banner {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding-bottom: 0.25rem;
+  letter-spacing: 0.02em;
+}
+/* The blank strip between CenterBoard and this panel was the one place the
+   board never actually told you whose turn it was (the gold ring around
+   .me-boxes is easy to miss at a glance) — this fills it with something
+   unmissable right as .current-turn's ring lights up. */
+@keyframes turn-banner-pulse {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.me-turn-banner {
+  text-align: center;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #000;
+  text-shadow: none;
+  padding-bottom: 0.25rem;
+  animation: turn-banner-pulse 0.5s ease-out;
+}
+.me-boxes-waiting {
+  opacity: 0.72;
+}
+.me-box {
+  padding: 0.4rem 0.6rem;
+}
+/* Shared "trading mat" material for all three of the player's own boxes —
+   grain texture + warm edge + a raised drop shadow so the whole band reads
+   as tabletop components instead of flat divs. */
+.me-box-caravan,
+.me-box-cards,
+.me-box-golems {
+  background-color: var(--mat);
+  background-image: var(--noise);
+  background-blend-mode: overlay;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 6px 18px rgba(0, 0, 0, 0.32);
+}
+.me-box-caravan {
+  flex: 0 0 210px;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+}
+.me-box-cards {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  padding: 20px 22px;
+  background-image: radial-gradient(115% 88% at 50% 40%, rgba(255, 240, 205, 0.19) 0%, rgba(0, 0, 0, 0) 62%),
+    var(--noise);
+}
+/* Stitched leather edge — a small detail that's most of what makes this
+   read as a mat instead of a rounded div. Center panel only (.me-box-cards),
+   not the side panels, matching the reference. */
+.me-box-cards::after {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border-radius: 8px;
+  border: 1px dashed rgba(224, 177, 85, 0.2);
+  pointer-events: none;
+}
+.mat-crest {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 220px;
+  height: 220px;
+  color: var(--text);
+  opacity: 0.06;
+  pointer-events: none;
+  z-index: 0;
+}
+.me-box-cards .col-label {
+  text-align: center;
+}
+.me-golems-col {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-height: 0;
+}
+.me-box-golems {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem 0.7rem;
+}
+.rest-button-below {
+  width: 100%;
+  padding: 0.6rem 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #3a2f20;
+  border: 1px solid var(--gold-deep);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #f3cb80 0%, var(--turn-gold) 52%, var(--gold-deep) 100%);
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.block-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.2rem;
+}
+
+.caravan-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  width: 100%;
+  height: 100%;
+}
+.caravan-block .block-label {
+  font-size: 0.85rem;
+}
+/* Vertical (2 cols x 5 rows) and fluid — same min(width-limit, height-limit)
+   technique the center board uses for --card-w, via container-type: size
+   on the wrap so it queries only its own box (excluding caravan-hint's
+   footprint below it, when present) rather than the whole caravan-block. */
+.caravan-grid-wrap {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: size;
+}
+.me-box-caravan .caravan-grid {
+  --cols: 2;
+  --rows: 5;
+  --gap: 9px;
+  --pad: 15px;
+  --w-limit: calc((100cqw - 2 * var(--pad) - (var(--cols) - 1) * var(--gap)) / var(--cols));
+  --h-limit: calc((100cqh - 2 * var(--pad) - (var(--rows) - 1) * var(--gap)) / var(--rows));
+  --slot-size: min(var(--w-limit), var(--h-limit));
+  grid-template-columns: repeat(var(--cols), var(--slot-size));
+  grid-template-rows: repeat(var(--rows), var(--slot-size));
+  gap: var(--gap);
+  padding: var(--pad);
+  border-radius: 12px;
+  width: fit-content;
+  /* Unlike the base .caravan-grid (opponent panels, detail modal), no tray
+     background here — the mat's own texture shows through the gaps between
+     sockets, like circles printed straight onto a physical caravan card. */
+  background: transparent;
+}
+/* Recessed "printed socket" look (spec: "empty slots are artwork") — applies
+   to every slot regardless of fill state; the color-fallback backgrounds and
+   colored border in the .filled.slot-* rules below layer on top of this
+   (later in the cascade) for filled slots specifically. */
+.me-box-caravan .caravan-grid .slot {
+  width: var(--slot-size);
+  height: var(--slot-size);
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.62), inset 0 -1px 0 rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+/* Fills the whole box (flex: 1) — a definite, flex-resolved width, not
+   width: fit-content. fit-content requires a shrink-to-fit pass that can't
+   see the hand-card-slot chain's real width (it's height: 100% driven, and
+   percentage heights resolve to auto during that pass), so it was
+   computing a much-too-narrow box that clipped the actual (correctly
+   sized) cards. Centering happens on the row itself (justify-content:
+   center below) instead of pre-splitting this box, so a small hand sits
+   centered and a growing one can use the box's *full* width before it
+   ever needs to scroll. */
+.cards-block {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  position: relative;
+  z-index: 1;
+}
+/* Fades out at both ends rather than a hard rule, per the mat spec —
+   separates playable from played without a harsh line across the felt. */
+.cards-divider {
+  flex: 0 0 auto;
+  height: 1px;
+  width: 88%;
+  margin: 0 auto;
+  background: linear-gradient(90deg, transparent, rgba(224, 177, 85, 0.34), transparent);
+}
+
+/* Height-driven so the row's footprint is predictable regardless of hand
+   size — width follows from the 5:7 aspect-ratio. An 11th+ card scrolls
+   rather than shrinking everything else to fit (nowrap + overflow-x). */
+.me-card-row {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.me-card-row .card-visual {
+  height: 100%;
+  width: auto;
+  flex: 0 0 auto;
+}
+.hand-card-slot {
+  height: 100%;
+  flex: 0 0 auto;
+  cursor: grab;
+  transition: transform 0.12s ease;
+}
+.hand-card-slot .card-visual {
+  height: 100%;
+  width: auto;
+}
+/* Faded rather than gone — the browser already grabbed a drag-image
+   snapshot of the card before this class applies, so the cursor carries a
+   full-opacity copy while this slot fades, and the hand reflows live
+   around it (see handleDragEnterCard in MePanel.jsx). */
+.hand-card-slot.dragging {
+  opacity: 0.35;
+  cursor: grabbing;
+}
+.card-col {
+  min-height: 0;
+}
+.cards-block .card-col {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* Playable (the interactive hand) gets a bit more height than played, so
+   its cards read as slightly bigger — the one you're actually clicking. */
+.cards-block .card-col:first-child {
+  flex: 1.18;
+}
+.cards-block .card-col:last-child {
+  flex: 0.82;
+}
+.cards-block .card-row {
+  flex: 1;
+  min-height: 0;
+  justify-content: center;
+}
+
+/* Cards sit ON the mat (playable) or press INTO it (played) — opposite
+   shadow directions carry the distinction more than the column labels do. */
+.cards-block .card-col:first-child .card-visual {
+  box-shadow: 0 7px 16px rgba(0, 0, 0, 0.52), 0 1px 2px rgba(0, 0, 0, 0.4);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+.cards-block .card-col:first-child .card-visual.clickable:hover {
+  transform: translateY(-9px);
+  border-color: var(--turn-gold);
+  box-shadow: 0 16px 26px rgba(0, 0, 0, 0.55), 0 0 20px rgba(224, 177, 85, 0.4);
+}
+.cards-block .card-col:last-child .card-visual {
+  filter: grayscale(0.5) brightness(0.72);
+  opacity: 0.9;
+  border-color: rgba(0, 0, 0, 0.45);
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.6);
+}
+
+.golems-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: auto;
+}
+.points-readout {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.points-and-clock-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.golem-slots-wrap {
+  width: fit-content;
+}
+
+/* 3-per-row on purpose (width capped below) — with 5-6 slots, wrapping to
+   2 rows of noticeably bigger card-shaped placeholders fills this box far
+   better than one row of tiny dots would. */
+.golem-slots {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+  width: 196px;
+}
+.golem-slot.filled,
+.golem-slot-empty {
+  width: 60px;
+  aspect-ratio: 5 / 7;
+  border-radius: 8px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Real card art, same as everywhere else a claimed golem shows up
+   (OpponentPanel's mini tiles, PlayerDetailOverlay) — a flat tile with
+   just a point number read as "can't tell which golems these are," which
+   is exactly the complaint this replaced. Clickable (GolemSlots.jsx wires
+   onSelect) to zoom in via GolemZoomOverlay. */
+.golem-slot.filled {
+  overflow: hidden;
+}
+.golem-slot.filled .card-visual {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.golem-slot.filled .card-overlay-topright {
+  top: 2px;
+  right: 2px;
+}
+.golem-slot.filled .points-badge {
+  width: 14px;
+  height: 14px;
+  font-size: 0.5rem;
+}
+/* Same recessed-socket depth as the caravan slots, plus a faint golem-figure
+   glyph — "empty slots are artwork," not a blank dashed box. */
+.golem-slot-empty {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.6);
+}
+.golem-glyph {
+  width: 55%;
+  fill: var(--text);
+  opacity: 0.16;
+}
+
+/* ---------- caravans ---------- */
+
+.caravan-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 3px;
+  background: var(--well);
+  padding: 5px;
+  border-radius: 8px;
+  width: fit-content;
+  flex: 0 0 auto;
+}
+.caravan-grid .slot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.caravan-grid .slot.empty {
+  background: transparent;
+}
+/* Flat color stays as a fallback behind the real gem icon (CaravanGrid.jsx)
+   — shows through instantly while the image loads, and if it ever 404s. */
+.caravan-grid .slot.filled.slot-Y { background: var(--y); border-color: var(--y); }
+.caravan-grid .slot.filled.slot-G { background: var(--g); border-color: var(--g); }
+.caravan-grid .slot.filled.slot-B { background: var(--b); border-color: var(--b); }
+.caravan-grid .slot.filled.slot-M { background: var(--m); border-color: var(--m); }
+
+/* Shared by CaravanGrid's .slot and CrystalDots' .dot — the actual gem PNG
+   (server/main.py's /static/crystals route) fills whichever circular
+   container it's placed in. */
+.gem-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+
+/* ---------- upgrade picker: click-a-crystal caravan ---------- */
+
+.caravan-grid .slot-clickable {
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+.caravan-grid .slot-clickable:hover {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 2px #ffd166;
+}
+/* The sparkle marking a staged (not-yet-confirmed) upgrade step. */
+.caravan-grid .slot-pending {
+  animation: sparkle-pulse 1.1s ease-in-out infinite;
+  box-shadow: 0 0 6px 2px #ffd166;
+}
+@keyframes sparkle-pulse {
+  0%, 100% { box-shadow: 0 0 4px 1px #ffd166; }
+  50% { box-shadow: 0 0 9px 3px #fff3c4; }
+}
+.slot-draggable {
+  cursor: grab;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.slot-draggable:active {
+  cursor: grabbing;
+}
+.slot-draggable:hover {
+  transform: scale(1.08);
+}
+/* The gem actually being dragged — dimmed in place while .crystal-drag-ghost
+   follows the cursor, same treatment MePanel gives a hand card mid-reorder,
+   so the caravan doesn't look like it still has two copies. */
+.slot-dragging {
+  opacity: 0.35;
+}
+/* The crystal itself, in transit — Board.jsx's own pointer-driven ghost
+   (see handleStartCrystalDrag), not the native HTML5 Drag and Drop API's
+   built-in drag image. That API's browser support turned out to be
+   unreliable in at least one real environment this app runs in (an
+   interrupted native drag could leave the whole page's click handling
+   stuck), so this is deliberately plain Pointer Events + a manually
+   positioned element instead. */
+.crystal-drag-ghost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 40px;
+  height: 40px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 200;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+}
+.caravan-hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.7rem;
+  color: #ffd166;
+  text-align: center;
+}
+/* Replaces the old bottom-of-screen "Playing upgrade... Confirm/Undo/Cancel"
+   strip — right in the caravan box the gold ring already highlights, since
+   that's what you're actually looking at while picking upgrade steps. Gray
+   until every step is spent (builder.maxSteps — 2 for Upgrade 2, 3 for
+   Upgrade 3, no special-casing needed either way), same brass-plate style
+   as every other confirm button once it lights up. */
+.upgrade-confirm-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 0.4rem;
+}
+.upgrade-confirm-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 0.4rem 0;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #3a2f20;
+  border: 1px solid var(--gold-deep);
+  background: linear-gradient(180deg, #f3cb80 0%, var(--turn-gold) 52%, var(--gold-deep) 100%);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: filter 0.14s ease;
+}
+.upgrade-confirm-btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+.upgrade-confirm-btn:disabled {
+  background: #4a4034;
+  border-color: #5a4f3f;
+  color: #7a6f5c;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.upgrade-cancel-btn {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.upgrade-cancel-btn:hover {
+  color: var(--text);
+  border-color: var(--turn-active-red);
+}
+
+/* ---------- crystal dots (cards) ---------- */
+
+.crystal-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  max-width: 44px;
+}
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+.dot-Y { background: var(--y); }
+.dot-G { background: var(--g); }
+.dot-B { background: var(--b); }
+.dot-M { background: var(--m); }
+.dot-overflow {
+  font-size: 0.55rem;
+  color: #ddd;
+}
+
+
+/* ---------- token piles ---------- */
+
+.token-dots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2.5px;
+  width: 28px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85));
+}
+.token-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+}
+.token-copper .token-dot { background: #c07a3e; }
+.token-silver .token-dot { background: #e7e1d2; }
+
+/* ---------- center board: golem row / merchant row / decks ---------- */
+
+/* Both rows share one card size, derived from --card-w on .center-rows.
+   .center-rows is size-contained (container-type: size) so it can be
+   queried in its own right (cqw/cqh) independent of its cards' content —
+   --card-w is then whichever is smaller of the width-limited fit (7 slots:
+   6 play-cards + deck, the widest row) and the height-limited fit (two
+   rows stacked, with clearance reserved above the golem row for the
+   floating token piles). Whichever axis binds, the leftover space on the
+   other axis is absorbed by centering (justify-content/align-items), so
+   cards stay undistorted (aspect-ratio 5/7) and margins land even instead
+   of the cards stretching to fill the row. */
+.center-board {
+  /* max(vh, px) so padding scales up on tall windows instead of sitting at
+     a fixed size, while never dropping below a usable floor on short ones. */
+  padding: max(1.6vh, 22px);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+}
+.center-rows {
+  --slots: 7;
+  --token-clear: 32px;
+  --rows-gap: max(1.6vh, 16px);
+  --w-limit: calc((100cqw - (var(--slots) - 1) * var(--row-gap)) / var(--slots));
+  --h-limit: calc(((100cqh - var(--rows-gap) - var(--token-clear)) / 2) * 5 / 7);
+  --card-w: min(var(--w-limit), var(--h-limit));
+  container-type: size;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--rows-gap);
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+.deck-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--row-gap);
+  flex: 0 0 auto;
+}
+.golem-deck-row {
+  margin-top: var(--token-clear);
+}
+/* Center-board rows: the card-row wrapper is removed from layout so its
+   cards and the deck box become direct flex siblings of one row, sharing
+   one flex-basis pool — that's what makes the cards fill the row width
+   and stay equal-width instead of clustering at their old fixed size. */
+.center-board .card-row {
+  display: contents;
+}
+
+.golem-slot-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+.merchant-slot-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+.center-board .deck-row .merchant-card {
+  flex: 0 0 auto;
+}
+
+/* Acquire drag-to-pay (see CenterBoard.jsx/MePanel.jsx). Every merchant
+   card is a live drop target the whole time it's your turn — dragging
+   never waits on first clicking a target — so what changes here is only
+   ever *how prominent* the highlight is, never whether the outline exists
+   at all. The outline/glow are declared unconditionally (transparent by
+   default) specifically so toggling the state classes below animates
+   smoothly via transition instead of the outline snapping in and out. */
+.merchant-slot-wrap .card-visual {
+  outline: 2px dashed transparent;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 0 transparent;
+  transition: outline-color 0.15s ease, box-shadow 0.15s ease;
+}
+/* All six cards, dimly — shown only while a crystal is actually airborne
+   (CenterBoard.jsx tracks real dragstart/dragend), so the row stays calm
+   the rest of the time instead of permanently ringed in gold. */
+.acquire-dropzone .card-visual {
+  outline-color: rgba(255, 209, 102, 0.4);
+}
+/* Whichever one the cursor is actually over right now — brighter and
+   solid, so the exact landing spot is never ambiguous mid-drag. */
+.acquire-dropzone-hover .card-visual {
+  outline-color: #ffd166;
+  outline-style: solid;
+  box-shadow: 0 0 12px 2px rgba(255, 209, 102, 0.5);
+}
+/* Clicking a target before it's fully paid for doesn't open any prompt —
+   it just flashes whichever of the cards to its left still need a crystal,
+   right where the player needs to drop one, then fades on its own
+   (Board.jsx clears the flash after ~600ms). A pulse rather than a held
+   highlight, since nothing is "selected" anymore — there's no mode to be in. */
+.acquire-missing .card-visual {
+  animation: acquire-missing-flash 0.6s ease-out;
+}
+@keyframes acquire-missing-flash {
+  0% {
+    outline-color: #ff8a4c;
+    outline-style: solid;
+    box-shadow: 0 0 14px 3px rgba(255, 138, 76, 0.55);
+  }
+  100% {
+    outline-color: transparent;
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.golem-token-pile {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  margin-bottom: 6px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.token-pile-count {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.85));
+}
+
+.deck-box {
+  width: var(--card-w);
+  min-height: calc(var(--card-w) * 7 / 5 * 1.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  background: var(--panel);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-card);
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-align: center;
+  flex: 0 0 auto;
+}
+.center-board .deck-box {
+  width: auto;
+  height: calc(var(--card-w) * 7 / 5);
+  min-height: 0;
+  aspect-ratio: 6 / 7;
+}
+.deck-box .deck-count {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* ---------- cards: fixed 5:7 rect, empty image slot + overlay layer ---------- */
+
+.card-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.card-visual {
+  position: relative;
+  width: var(--card-w);
+  aspect-ratio: 5 / 7;
+  border-radius: var(--radius-card);
+  overflow: visible;
+  background: var(--card-slot);
+  border: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.card-visual.compact {
+  width: var(--card-w-compact);
+}
+.card-visual.clickable {
+  cursor: pointer;
+}
+.card-visual.clickable:hover {
+  border-color: #7f8ba3;
+  box-shadow: 0 0 0 2px rgba(111, 138, 184, 0.35);
+}
+
+.card-image-slot {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  background: var(--card-slot);
+}
+.card-art-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.card-image-slot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+  color: rgba(255, 255, 255, 0.07);
+}
+/* Real art renders full-opacity, so the faint placeholder glyph underneath
+   it must not paint on top (::after is a later paint than the <img> child,
+   same stacking context, even though it's declared first in the sheet). */
+.card-image-slot.has-art::after {
+  content: none;
+}
+.merchant-card.kind-crystal .card-image-slot::after { content: '\25C6'; }
+.merchant-card.kind-upgrade .card-image-slot::after { content: '\2191'; }
+.merchant-card.kind-trade .card-image-slot::after { content: '\21C4'; }
+.golem-card .card-image-slot::after { content: '\2605'; }
+
+.card-overlay-topleft {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 2;
+}
+.card-visual.compact .card-overlay-topleft {
+  transform: scale(0.75);
+  transform-origin: top left;
+}
+/* Real, confirmed crystals-on-card (century_engine's row_crystals) sit
+   centered on the card face, in one row alongside any crystal the current
+   player has staged there but not yet confirmed (see MerchantCard.jsx) —
+   they used to be two independently-centered overlays stacked exactly on
+   top of each other, which made a card that already held a crystal look
+   like staging a second one replaced it instead of adding to it. One row,
+   one shared background pill, real count always visible. */
+.on-card-crystals {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: rgba(28, 23, 17, 0.55);
+  z-index: 3;
+  pointer-events: none;
+}
+.on-card-crystals .crystal-dots {
+  max-width: none;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+.on-card-crystals .dot {
+  width: 15px;
+  height: 15px;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.55);
+}
+/* The one crystal in the row that isn't confirmed yet — same size as its
+   neighbors so the count reads cleanly, but still poppable back off
+   (pointer-events re-enabled just for this button) and still sparkling, so
+   "not final yet" reads the same way an in-progress upgrade pick does. */
+.on-card-crystals .staged-dot {
+  position: relative;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  cursor: pointer;
+  pointer-events: auto;
+  animation: staged-dot-in 0.18s ease-out, sparkle-pulse 1.1s ease-in-out 0.18s infinite;
+}
+.on-card-crystals .staged-dot .gem-icon {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+@keyframes staged-dot-in {
+  from { transform: scale(0.3); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.card-overlay-topright {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+}
+.points-badge {
+  background: rgba(0, 0, 0, 0.6);
+  color: #ffd166;
+  font-weight: 700;
+  font-size: 0.7rem;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-overlay-bottom {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: 3px;
+  font-size: 0.62rem;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.5);
+  color: #f0f0f0;
+  border-radius: 4px;
+  padding: 1px 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 2;
+}
+.card-visual.compact .card-overlay-bottom {
+  display: none;
+}
+
+.overlay-badge {
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 0 4px;
+}
+.overlay-arrow {
+  color: #ddd;
+  font-size: 0.6rem;
+  text-align: center;
+}
+
+/* ---------- action strip ---------- */
+
+.action-strip {
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  padding: 0.2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-height: 1.4rem;
+  font-size: 0.85rem;
+  flex: 0 0 auto;
+}
+
+.error-banner {
+  color: #ff8080;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.dismiss-error {
+  background: none;
+  border: none;
+  color: #ff8080;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+}
+.pending-decision-banner {
+  color: #ffd166;
+  font-size: 0.85rem;
+}
+
+
+button {
+  background: #2f3542;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.15rem 0.45rem;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+button:hover:not(:disabled) {
+  border-color: #7f8ba3;
+}
+
+/* ---------- join screen ---------- */
+/* The table itself, before there's a board on it: same pale-canvas-plus-
+   grain the real board sits on (--bg/--noise, no dramatic corner glow —
+   the game board doesn't have one either), with the actual form living on
+   a dark walnut mat card instead of a floating light-mode web-app panel. */
+
+.join-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg);
+  background-image: var(--noise);
+  background-blend-mode: multiply;
+  padding: 40px;
+  color: var(--join-ink);
+  font-family: system-ui, sans-serif;
+}
+
+/* Same "trading mat" material as .me-box-* — grain + a warm carved edge +
+   a raised drop shadow, so this reads as a physical mat sitting on the
+   table rather than a rounded card floating over it. */
+.join-card {
+  width: 560px;
+  max-width: 100%;
+  background-color: var(--join-card);
+  background-image: var(--noise);
+  background-blend-mode: overlay;
+  border: 1px solid var(--join-line);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 28px rgba(0, 0, 0, 0.4);
+  padding: 34px 36px 28px;
+}
+
+.join-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--join-ink-dim);
+  margin-bottom: 9px;
+}
+.join-heading {
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 30px;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+  color: var(--join-ink);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+.join-field { margin-bottom: 26px; }
+.join-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: var(--join-ink);
+}
+.join-inputrow { position: relative; }
+.join-input {
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  color: var(--join-ink);
+  -webkit-text-fill-color: var(--join-ink);
+  padding: 12px 58px 12px 14px;
+  background: var(--dialog-well);
+  border: 1px solid var(--join-line);
+  border-radius: 8px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
+  outline: none;
+}
+.join-input::placeholder { color: var(--join-ink-dim); }
+.join-input:focus {
+  border-color: var(--turn-gold);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35), 0 0 0 3px rgba(224, 177, 85, 0.25);
+}
+.join-counter {
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--join-ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+.join-error {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: #ff8080;
+}
+
+.join-note {
+  font-size: 12px;
+  color: var(--join-ink-dim);
+}
+
+.join-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px 14px;
+}
+.join-avwrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+/* Matte, grained "carved token" rather than a glossy glass sphere — the
+   noise texture is the same grain the board/cards use elsewhere, so the
+   picker reads as another piece on the table instead of a UI-kit avatar.
+   `filter: saturate(0.85) contrast(1.05)` + the added inset ring (here and
+   on every other avatar-circle class below) is what unifies a real photo
+   with this parchment/walnut palette instead of it looking pasted on. */
+.join-av {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 3px solid color-mix(in srgb, var(--hue) 40%, #2b2418 60%);
+  cursor: pointer;
+  padding: 0;
+  background-color: var(--hue);
+  background-image: linear-gradient(165deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.24)), var(--noise);
+  background-blend-mode: soft-light, overlay;
+  box-shadow: 0 3px 8px rgba(60, 45, 20, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.22), inset 0 0 0 2px rgba(60, 45, 20, 0.25);
+  filter: saturate(0.85) contrast(1.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+}
+.join-av:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 16px rgba(60, 45, 20, 0.26), inset 0 2px 4px rgba(0, 0, 0, 0.22), inset 0 0 0 2px rgba(60, 45, 20, 0.25);
+}
+.join-av:focus-visible {
+  outline: 2px solid var(--gold-deep);
+  outline-offset: 3px;
+}
+.join-glyph {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+/* The gold selection ring is layered ON TOP of the same base inset ring
+   above, not instead of it — box-shadow doesn't merge across rules that
+   both set it, so the parchment ring has to be repeated here or it'd just
+   vanish the moment an avatar is selected. */
+.join-av-selected {
+  box-shadow: 0 0 0 3px var(--join-card), 0 0 0 6px var(--turn-gold), 0 6px 14px rgba(60, 45, 20, 0.28), inset 0 0 0 2px rgba(60, 45, 20, 0.25);
+}
+.join-check {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: var(--turn-gold);
+  border: 2.5px solid var(--join-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.join-check svg { width: 14px; height: 14px; }
+
+/* Only shown if a photo 404s (AvatarGlyph.jsx) — same hue, same ring, just
+   a letter instead of a face. Sizing is per-context (see each avatar
+   circle's own override below) since these circles range from 28px to
+   76px and a single font-size wouldn't read right at both ends. */
+.avatar-fallback-letter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+}
+.join-av .avatar-fallback-letter { font-size: 1.9rem; }
+
+/* ---------- waiting room (WaitingRoom.jsx) ---------- */
+.waiting-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--join-ink);
+  margin-bottom: 12px;
+}
+.waiting-seats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.waiting-seat {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 12px;
+  background: var(--dialog-well);
+  border: 1px solid var(--join-line);
+  border-radius: 8px;
+}
+.waiting-seat-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--hue);
+  background-image: linear-gradient(165deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.24)), var(--noise);
+  background-blend-mode: soft-light, overlay;
+  border: 2px solid color-mix(in srgb, var(--hue) 40%, #2b2418 60%);
+  box-shadow: 0 2px 3px rgba(60, 45, 20, 0.2), inset 0 2px 3px rgba(0, 0, 0, 0.22), inset 0 0 0 2px rgba(60, 45, 20, 0.25);
+  filter: saturate(0.85) contrast(1.05);
+}
+.waiting-seat-avatar-glyph {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.waiting-seat-avatar .avatar-fallback-letter { font-size: 0.75rem; }
+.waiting-seat-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #4a9d5c;
+  flex: 0 0 auto;
+}
+.waiting-seat-dot-off {
+  background: #6a6052;
+}
+.waiting-seat-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--join-ink);
+  flex: 1;
+}
+.waiting-seat-you,
+.waiting-seat-host {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--turn-gold);
+  background: rgba(224, 177, 85, 0.14);
+  border: 1px solid var(--gold-deep);
+}
+
+.join-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid var(--join-line);
+}
+
+/* Same brass-plate gradient as .rest-button-below — a real physical button
+   on the table, not a flat "candy button" fill — so the start screen's one
+   call-to-action already looks like part of the same game. */
+.join-btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 14px 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #3a2f20;
+  border: 1px solid var(--gold-deep);
+  background: linear-gradient(180deg, #f3cb80 0%, var(--turn-gold) 52%, var(--gold-deep) 100%);
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  transition: filter 0.14s ease, transform 0.05s ease, box-shadow 0.05s ease;
+}
+.join-btn:hover:not(:disabled) { filter: brightness(1.06); }
+.join-btn:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); }
+.join-btn:focus-visible { outline: 2px solid var(--join-gold-deeper); outline-offset: 3px; }
+.join-btn:disabled {
+  background: #4a4034;
+  border-color: #5a4f3f;
+  color: #7a6f5c;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* A quieter action than the main brass Create/Join button — practice mode
+   is the secondary path on this screen, not the point of the app, so it
+   shouldn't compete with it for attention. */
+.join-btn-secondary {
+  background: transparent;
+  color: var(--join-ink);
+  border: 1px solid var(--join-line);
+  box-shadow: none;
+}
+.join-btn-secondary:hover:not(:disabled) {
+  filter: none;
+  border-color: var(--turn-gold);
+  color: var(--turn-gold);
+}
+.join-btn-secondary:disabled {
+  background: transparent;
+  border-color: var(--join-line);
+  color: var(--join-ink-dim);
+}
+.waiting-leave-btn {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+}
+
+/* ---------- solo/practice mode (StartScreen.jsx) ---------- */
+.join-solo {
+  margin-top: 22px;
+}
+.join-solo-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  color: var(--join-ink-dim);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.join-solo-divider::before,
+.join-solo-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--join-line);
+}
+.join-solo-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.join-solo-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.join-solo-count-label {
+  font-size: 12px;
+  color: var(--join-ink-dim);
+}
+.join-solo-count {
+  font: inherit;
+  font-size: 13px;
+  color: var(--join-ink);
+  background: var(--dialog-well);
+  border: 1px solid var(--join-line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  outline: none;
+}
+.join-solo-count:focus {
+  border-color: var(--turn-gold);
+}
+
+/* ---------- trade dialog ---------- */
+/* Generic .dialog-* shell (scrim, centering, confirm-only footer) so the
+   next choice dialog this shape suits — acquire payment, upgrade target,
+   the caravan-limit discard (trade_dialog_prompt.md "Reuse") — can adopt it
+   without rebuilding the overlay mechanics. */
+
+.dialog-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 23, 17, 0.62);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trade-dialog {
+  width: 600px;
+  max-width: calc(100vw - 32px);
+  background: var(--dialog-panel);
+  border: 1px solid var(--dialog-border);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  color: var(--dialog-text);
+  cursor: default;
+}
+
+.dialog-top {
+  display: flex;
+  align-items: stretch;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.dialog-lbl {
+  font-size: 13px;
+  color: var(--dialog-muted);
+}
+
+/* Sized via --card-w (the same mechanism every .card-visual reads) rather
+   than a one-off width — real card art, real 5:7 shape, no re-derivation. */
+.trade-dialog-card {
+  --card-w: 174px;
+  flex: none;
+}
+
+.trade-dialog-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+/* Stretches to the card's full height (align-items: stretch above) with no
+   dead gap — grid-auto-rows: 1fr divides whatever height that turns out to
+   be evenly across however many rows the card's ceiling needs, rather than
+   assuming a fixed 5-button/3-row layout. */
+.conversion-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 8px;
+}
+.conversion-grid .span-full {
+  grid-column: 1 / -1;
+}
+
+.conversion-btn {
+  font: inherit;
+  font-size: 19px;
+  font-weight: 600;
+  padding: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--dialog-btn);
+  border: 1px solid var(--dialog-border);
+  color: var(--dialog-text);
+}
+.conversion-btn.selected {
+  background: var(--dialog-gold);
+  border-color: var(--dialog-gold-border);
+  color: var(--dialog-gold-ink);
+}
+.conversion-btn:disabled {
+  background: var(--dialog-btn-disabled);
+  border-color: var(--dialog-btn-disabled-border);
+  color: var(--dialog-btn-disabled-text);
+  cursor: not-allowed;
+}
+
+.dialog-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+.trade-dialog-caravan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  width: 296px;
+  margin-bottom: 9px;
+}
+.dialog-caravan-count {
+  font-size: 12px;
+  color: var(--dialog-muted);
+}
+/* The same .caravan-grid every other panel uses (CaravanGrid.jsx, unchanged)
+   — just re-tinted to the dialog's own flat well/socket colors and laid out
+   at a fixed width instead of the vertical me-panel or tiny opponent sizing. */
+.trade-dialog-caravan .caravan-grid {
+  width: 296px;
+  background: var(--dialog-well);
+  gap: 8px;
+  padding: 10px;
+  border-radius: 6px;
+}
+.trade-dialog-caravan .caravan-grid .slot {
+  width: auto;
+  height: auto;
+  aspect-ratio: 1;
+  background: var(--dialog-socket);
+}
+.trade-dialog-caravan .caravan-grid .slot.empty {
+  background: var(--dialog-socket);
+}
+
+.dialog-confirm {
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 11px 42px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--dialog-gold);
+  border: 1px solid var(--dialog-gold-border);
+  color: var(--dialog-gold-ink);
+}
+.dialog-confirm:hover {
+  background: #d4ac57;
+}
+
+/* ---------- game over overlay (GameOverOverlay.jsx) ---------- */
+/* Same grained "trading mat" material as .join-card/.me-box-* (noise
+   texture blended over the wood panel color) instead of a flat solid fill —
+   that grain + the serif title below is most of what makes this read as
+   part of the game's own table dressing rather than a generic app modal. */
+.gameover-dialog {
+  position: relative;
+  width: 460px;
+  max-width: calc(100vw - 32px);
+  background-color: var(--dialog-panel);
+  background-image: var(--noise);
+  background-blend-mode: overlay;
+  border: 1px solid var(--dialog-border);
+  border-radius: 10px;
+  padding: 40px 24px 24px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 30px rgba(0, 0, 0, 0.45);
+  color: var(--dialog-text);
+  cursor: default;
+  text-align: center;
+}
+/* A corner label rather than a big centered heading now that the winner's
+   own avatar (below) is the actual focal point of this screen. */
+.gameover-title {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--dialog-muted);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+/* Bigger version of the same "carved token" treatment each ranked row's
+   own .gameover-avatar uses below — the person who actually won, not a
+   generic trophy/crest, as the thing your eye lands on first. */
+.gameover-winner-avatar {
+  width: 76px;
+  height: 76px;
+  margin: 6px auto 10px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--hue);
+  background-image: linear-gradient(165deg, rgba(255, 255, 255, 0.16), rgba(0, 0, 0, 0.26)), var(--noise);
+  background-blend-mode: soft-light, overlay;
+  border: 3px solid color-mix(in srgb, var(--hue) 40%, #2b2418 60%);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4), inset 0 2px 4px rgba(0, 0, 0, 0.22), inset 0 0 0 2px rgba(60, 45, 20, 0.25);
+  filter: saturate(0.85) contrast(1.05);
+}
+.gameover-winner-avatar-glyph {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.gameover-winner-avatar .avatar-fallback-letter { font-size: 1.9rem; }
+.gameover-subtitle {
+  margin-top: 4px;
+  margin-bottom: 18px;
+  color: var(--dialog-gold);
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-style: italic;
+}
+.gameover-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.gameover-row {
+  display: grid;
+  grid-template-columns: 1.4em auto 1fr auto auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--dialog-well);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+/* Clicking a row opens the same read-only detail card OpponentPanel does
+   mid-game (see GameOverOverlay.jsx's onSelectPlayer) — this hover is the
+   only hint that it's clickable, so it needs to actually read as one. */
+.gameover-row:hover {
+  border-color: var(--dialog-gold-border);
+  background: color-mix(in srgb, var(--dialog-gold) 10%, var(--dialog-well));
+}
+.gameover-row:focus-visible {
+  outline: 2px solid var(--dialog-gold);
+  outline-offset: 1px;
+}
+.gameover-row-winner {
+  background: color-mix(in srgb, var(--dialog-gold) 18%, var(--dialog-well));
+  border-color: var(--dialog-gold-border);
+}
+.gameover-row-winner:hover {
+  background: color-mix(in srgb, var(--dialog-gold) 26%, var(--dialog-well));
+}
+.gameover-rank {
+  color: var(--dialog-muted);
+  font-weight: 600;
+  text-align: right;
+}
+.gameover-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--hue);
+  background-image: linear-gradient(165deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.24)), var(--noise);
+  background-blend-mode: soft-light, overlay;
+  border: 2px solid color-mix(in srgb, var(--hue) 40%, #2b2418 60%);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.3), inset 0 2px 3px rgba(0, 0, 0, 0.22), inset 0 0 0 2px rgba(60, 45, 20, 0.25);
+  filter: saturate(0.85) contrast(1.05);
+}
+.gameover-avatar-glyph {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.gameover-avatar .avatar-fallback-letter { font-size: 0.7rem; }
+.gameover-name {
+  text-align: left;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Inline next to the winner's name instead of a separate "Winner" text
+   label below the row — a crown reads at a glance and doesn't need its own
+   row of vertical space. */
+.gameover-crown {
+  width: 13px;
+  height: 13px;
+  margin-left: 5px;
+  vertical-align: -1px;
+  color: var(--dialog-gold);
+  fill: currentColor;
+}
+.gameover-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--dialog-muted);
+  white-space: nowrap;
+}
+.gameover-token-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dialog-gold);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.35);
+}
+.gameover-score {
+  font-size: 1.15rem;
+  font-weight: 700;
+  min-width: 1.6em;
+  text-align: right;
+}
+/* Brass-plate button, same gradient as .join-btn/.rest-button-below — a
+   real physical button on the table, not a flat gold rectangle. */
+.gameover-close {
+  width: 100%;
+  margin-top: 4px;
+  padding: 12px 0;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #3a2f20;
+  border: 1px solid var(--gold-deep);
+  border-radius: 8px;
+  cursor: pointer;
+  background: linear-gradient(180deg, #f3cb80 0%, var(--turn-gold) 52%, var(--gold-deep) 100%);
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  transition: filter 0.14s ease, transform 0.05s ease, box-shadow 0.05s ease;
+}
+.gameover-close:hover { filter: brightness(1.06); }
+.gameover-close:active { transform: translateY(1px); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); }
+
+/* Floating pill (Board.jsx) that brings the overlay above back after it's
+   been dismissed — without this, closing it to look at the final board was
+   a one-way trip. */
+.gameover-reopen {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 40;
+  padding: 8px 18px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #3a2f20;
+  border: 1px solid var(--gold-deep);
+  border-radius: 999px;
+  cursor: pointer;
+  background: linear-gradient(180deg, #f3cb80 0%, var(--turn-gold) 52%, var(--gold-deep) 100%);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  transition: filter 0.14s ease, transform 0.05s ease;
+}
+.gameover-reopen:hover { filter: brightness(1.06); }
+.gameover-reopen:active { transform: translateY(1px); }
+
+/* Deliberately quiet (unlike .gameover-reopen's brass pill) — leaving is
+   the rare, slightly destructive action here, not something to draw the
+   eye to on every ordinary turn. */
+.leave-game-btn {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 40;
+  padding: 7px 14px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+  transition: color 0.14s ease, border-color 0.14s ease;
+}
+.leave-game-btn:hover {
+  color: var(--text);
+  border-color: var(--turn-active-red);
+}
+
+/* ---------- claim dialog (ClaimDialog.jsx) ---------- */
+/* Same panel look as .trade-dialog (background/border/shadow/color), but a
+   single centered column instead of a two-column layout — there's no
+   repeat-count picker to fill a right-hand side with, and the card's own
+   art already prints its name/cost/points, so nothing here duplicates
+   that as text. */
+.claim-dialog {
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  background: var(--dialog-panel);
+  border: 1px solid var(--dialog-border);
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  color: var(--dialog-text);
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.claim-dialog-card {
+  --card-w: 174px;
+}
+.claim-dialog .dialog-confirm {
+  width: 100%;
+}
+
+/* ---------- golem zoom overlay (GolemZoomOverlay.jsx) ---------- */
+/* A closer look at one already-claimed golem — no choice to make here
+   (unlike claim-dialog, which this otherwise mirrors), so no footer/confirm,
+   just the card itself, its name, and a close button. */
+.golem-zoom-frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: default;
+}
+.golem-zoom-card {
+  --card-w: 260px;
+}
+.golem-zoom-card .card-visual {
+  box-shadow: 0 20px 46px rgba(0, 0, 0, 0.55);
+}
+.golem-zoom-name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--dialog-text);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.golem-zoom-close {
+  position: absolute;
+  top: -16px;
+  right: -16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--dialog-panel);
+  border: 1px solid var(--dialog-border);
+  color: var(--dialog-text);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.golem-zoom-close:hover {
+  border-color: var(--turn-gold);
+  color: var(--turn-gold);
+}
