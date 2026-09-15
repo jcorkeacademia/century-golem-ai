@@ -668,3 +668,50 @@ when the analysis in Step 10 needs it.
    GreedyBot lands in Step 4 and the scales must be recomputed then.
 2. **`norm p95` is an addition**, not in the brief. The brief's own scale
    formula is kept exactly; this is a diagnostic on top of it.
+
+---
+
+## 10. Checklist: adding a feature (Step 7 and after)
+
+Step 7 adds features one at a time, ablation-gated. Every one of them goes
+through this, because Step 3 established the invariants they can break.
+
+**1. Never call TTC inside a feature.** Take it from `ctx.ttc_row(pid)` or
+`ctx.best_target(pid)`. A direct `sim.ttc(...)` call costs ~0.2 ms *per
+feature per candidate move* and will not show up as a failure, only as a
+slowdown. `test_ctx_computes_ttc_once_per_player` guards the existing path;
+extend it if a new feature needs a new cached quantity, and put the cache in
+`Ctx`, not in the feature.
+
+**2. Mark `symmetric` honestly.** True only when the feature is worth
+measuring an opponent by — it joins the `-lambda` term and doubles that
+feature's evaluation cost. Of the core twelve only four qualify. Denying
+someone a golem is real; denying them leftover yellow is not.
+
+**3. Recalibrate, then check the band.** Run `python -m bots.calibrate` and
+look at **`norm p95`** — p95 divided by the feature's scale, i.e. what a
+weight of 1.0 actually buys in a strong position. The core twelve sit between
+2.70 and 5.97. A new feature far outside (1.5, 6.0) is flagged and should not
+be shipped as-is:
+
+  * **`norm p95` very high** — the feature is near-constant in real play, so
+    dividing by its tiny spread inflates it. It will swamp everything else at
+    a weight that looks modest. `throughput` (5.97) is the existing example:
+    it lives between 1.33 and 2.9 all game, so a hand-set 0.5 behaves like 3.0.
+  * **`norm p95` very low** — the feature has huge spread relative to its
+    typical value, usually a long tail. It will read as inert at sane weights.
+
+CMA-ES compensates either way by learning a different weight, so this does not
+break *tuning*. It breaks *reading*, which is the point of the project — and
+it makes the Step 4 hand-set weights lie.
+
+**4. Recalibrating invalidates weights.** Scales are measured from a sampling
+policy. Change the policy (TempGreedyBot → GreedyBot in Step 4) or add a
+feature, and every previously fitted weight is stale, because each weight was
+fitted against a particular divisor. Re-tune, or at minimum re-validate,
+rather than carrying weights across a recalibration.
+
+**5. Ablation-gate it.** Per brief §Step 7: keep the feature only if the win
+rate improves by more than the confidence interval, or it enables an archetype
+in Step 9. Record feature, Δ win rate, CI and the kept/dropped call in
+`results/feature_log.md`.
