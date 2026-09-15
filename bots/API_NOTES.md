@@ -455,3 +455,113 @@ score every candidate, over 400 heuristic-play states:
    is still automatic, not a player sub-decision (HANDOVER §8.1). Out of scope
    for Step 1, and features #20–21 plus the sim's limit rule assume the current
    cheapest-first behavior.
+
+---
+
+## 8. Step 2 results
+
+`bots/sim.py` — the solitaire simulator. Nothing in it mutates a `Game`; it
+works on tuples of ints, which is what makes it cheap enough to call millions
+of times.
+
+### 8.1 Surface
+
+| name | what |
+|---|---|
+| `YE = (1,2,3,4)` | yellow-equivalent value per colour; one constant, so tuning can replace it |
+| `ye_of(caravan)` | total YE held |
+| `nominal_output(card)` | YE a card produces per play; negative for trade-down cards |
+| `throughput(player)` | mean YE per turn over owned cards, `/(n+1)` for the Rest turn |
+| `shortfall(caravan, cost)` | upgrade steps from here to payable; 0 means claimable |
+| `can_pay(caravan, cost)` | exact-colour affordability |
+| `enforce_limit(caravan)` | the engine's cap as a pure function |
+| `ttc(player, golem, depth=3)` | turns-to-claim |
+| `ttc_row(player, point_row, depth=3)` | TTC for the whole row, `None` for empty slots |
+| `card_id`, `card_ids`, `cost_of` | compact ids for cache keys |
+| `clear_cache()`, `cache_size()` | the memo table |
+
+### 8.2 Card identity is keyed on mechanics, not name
+
+The engine builds its own starting cards — `CrystalCard(((Y,2),), "Create 2")`
+— which are **not equal** to `century_cards.STARTING_CARDS`
+(`"Create 2 (+2Y)"`), because frozen-dataclass equality includes `name`. Keying
+the cache on card equality or identity would treat every starting card as
+unknown. `card_id` therefore hashes a card's *mechanics* only:
+`(CRYSTAL, gain)` / `(UPGRADE, steps)` / `(TRADE, cost, gain)`.
+
+Two mechanically identical cards then share an id — which is correct, not a
+collision: they are interchangeable for simulation, so sharing an id makes the
+cache hit more often at no cost in accuracy.
+
+### 8.3 Performance
+
+Positions sampled from heuristic play (1,200 states, TTC for every golem on
+the row for both players — 12,000 calls), depth 3:
+
+| | per call |
+|---|---|
+| cold cache (cleared per position) | **0.349 ms** |
+| warm cache (shared) | **0.262 ms** |
+
+Comfortably inside the brief's 1 ms target. Cost by depth, so Step 6 can price
+the hyperparameter:
+
+| depth | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| ms/call | 0.036 | 0.089 | **0.201** | 0.430 | 0.722 |
+
+Depth 4 is still affordable if tuning wants it; depth 5 is not, at scale.
+
+Optimising after the first profile roughly halved the cost — `shortfall` was
+the top hotspot at 215k calls, and batching its matching per level instead of
+per crystal took it from 0.534 s to 0.168 s of profile time. `_successors` is
+now the top entry, and the remaining fat is tuple-sorting for cache keys
+(~5%); not worth chasing at 4× headroom.
+
+### 8.4 What TTC returns
+
+12,000 values at depth 3: mean 3.66, median 3.0.
+
+```
+ 0 turns    196   1 turns  1,344   2 turns  2,463   3 turns  2,328
+ 4 turns  2,089   5 turns  1,465   6 turns    964   7 turns    558
+ 8 turns    266   9 turns    178  10 turns     74  11+        75
+```
+
+**53% of values are found by the search; 47% are extrapolated** from the
+fallback (`depth + ceil(shortfall at the best leaf / throughput)`). That is a
+lot of estimate, and it is the number to watch: a feature built on TTC is, half
+the time, built on an extrapolation rather than a plan. Raising the default
+depth to 4 is the obvious lever and costs about 2×.
+
+Sanity check: the lowest-TTC golem on the row is also the lowest-shortfall one
+in 85% of positions. The 15% where they disagree is TTC doing its job — seeing
+that a card in hand closes a bigger gap faster than a smaller gap can be closed
+without one.
+
+### 8.5 Cost of a bot decision, with TTC on every candidate
+
+One position, evaluating every legal move (clone + shuffle + apply + TTC for
+the whole row for both players):
+
+| | moves | per decision |
+|---|---|---|
+| full list | 49 | 6.76 ms |
+| pruned list | 17 | **2.18 ms** |
+
+TTC now dominates a decision (~128 µs/move against ~25 µs in Step 1), which is
+expected — it is the expensive part of the value function, and the reason
+Step 3 must compute it **once per evaluated state and reuse it** across
+features rather than calling it per feature.
+
+### 8.6 Deviations from the brief
+
+None. All four required TTC cases are tested (1-turn with the upgrade in hand,
+2-turn with it in the played pile, 0 when already payable, fallback above
+depth), plus the "has magenta, needs green" shortfall case.
+
+One judgement call worth recording: the fallback uses the shortfall at the
+**best leaf reached**, not at the starting state, exactly as the brief
+specifies. The difference is large — for an empty caravan chasing 5M it is
+19 turns rather than 23 — and it is easy to get wrong, so there is a test
+pinning the arithmetic.
