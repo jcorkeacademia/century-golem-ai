@@ -11,12 +11,10 @@ DESIGN PRINCIPLE: the engine is authoritative. Every mutation goes through
 `apply_action`, which rejects illegal moves. The multiplayer server should
 NEVER trust a client — it should reconstruct the action and call apply_action.
 
-WHAT YOU STILL NEED TO DO:
-  The photos don't contain the full deck. The card lists near the bottom
-  (MERCHANT_DECK, POINT_DECK) are a small, correct-by-construction SAMPLE so
-  the engine runs. Transcribe the real 40-ish Merchant cards and 36 Point
-  cards from your physical copy into those lists. The engine itself won't
-  change — only the data.
+DECKS: `Game` uses the full transcribed compendium (43 merchant / 36 point
+cards, in century_cards.py) by default. The small hand-written decks at the
+bottom of this file are kept as SAMPLE_MERCHANT_DECK / SAMPLE_POINT_DECK for
+tests that want a short, predictable game; pass them to the constructor.
 """
 
 from __future__ import annotations
@@ -27,6 +25,7 @@ from typing import Optional, Iterator
 import itertools
 import json
 import random
+import sys
 
 
 # ---------------------------------------------------------------------------
@@ -193,9 +192,16 @@ class Game:
     POINT_ROW = 5           # face-up point cards
     MERCHANT_ROW = 6        # face-up merchant cards
 
-    def __init__(self, player_names: list[str], seed: Optional[int] = None, log: bool = False):
+    def __init__(self, player_names: list[str], seed: Optional[int] = None, log: bool = False,
+                 merchant_deck: Optional[list[MerchantCard]] = None,
+                 point_deck: Optional[list[PointCard]] = None):
         if not (2 <= len(player_names) <= 5):
             raise ValueError("Century supports 2–5 players")
+        # Deck sources, in precedence order: explicit argument, module-level
+        # MERCHANT_DECK/POINT_DECK override, then the real compendium.
+        _m, _p = _default_decks()
+        self._merchant_source = merchant_deck if merchant_deck is not None else _m
+        self._point_source = point_deck if point_deck is not None else _p
         self.seed = seed
         self.rng = random.Random(seed)
         self.players = [Player(n) for n in player_names]
@@ -216,12 +222,16 @@ class Game:
         self.event_log: list[dict] = []
         self._turn_counter = 0
 
+        # Crystals the caravan limit dropped on the most recent action, as
+        # per-color counts (see _enforce_caravan_limit). Reset every action.
+        self.last_discard: list[int] = [0, 0, 0, 0]
+
         self._setup()
 
     # ----- setup -----
     def _setup(self) -> None:
         # Point deck + row (draw 5)
-        deck = list(POINT_DECK)
+        deck = list(self._point_source)
         self.rng.shuffle(deck)
         self.point_deck = deck
         self.point_row: list[Optional[PointCard]] = [self.point_deck.pop() for _ in range(self.POINT_ROW)]
@@ -232,7 +242,7 @@ class Game:
         self.point_tokens[1] = [Token.SILVER] * (self.n * 2)
 
         # Merchant deck + row (draw 6); crystals sitting on row cards
-        mdeck = list(MERCHANT_DECK)
+        mdeck = list(self._merchant_source)
         self.rng.shuffle(mdeck)
         self.merchant_deck = mdeck
         self.merchant_row: list[Optional[MerchantCard]] = [self.merchant_deck.pop() for _ in range(self.MERCHANT_ROW)]
@@ -264,10 +274,95 @@ class Game:
     def player(self) -> Player:
         return self.players[self.current]
 
+    @property
+    def end_triggered(self) -> bool:
+        """True once someone has reached `win_target` golems. The game itself
+        doesn't end until play wraps back to seat 0 — see _advance_turn."""
+        return self._end_triggered
+
+    # ----- cloning (for AI search; not used by the server) -----
+    def clone(self) -> "Game":
+        """A deep-enough copy: everything mutable is copied, card objects are
+        shared.
+
+        Cards are frozen dataclasses — nothing can mutate one — so copying
+        them (as copy.deepcopy does) is pure waste. What must be copied is
+        every *container*: each player's caravan/hand/played/point_cards/
+        tokens, both rows, the per-slot crystal Counters, the token piles and
+        both decks.
+
+        The clone gets its own `rng`. The engine only draws from `rng` during
+        _setup, so a clone's is effectively unused; `shuffle_hidden` takes an
+        explicit rng precisely so callers never depend on this one.
+        """
+        g = Game.__new__(Game)
+
+        g.seed = self.seed
+        g.rng = random.Random()
+        g.n = self.n
+        g.current = self.current
+        g.game_over = self.game_over
+        g.win_target = self.win_target
+        g._end_triggered = self._end_triggered
+        g._merchant_source = self._merchant_source
+        g._point_source = self._point_source
+        g.last_discard = self.last_discard[:]
+
+        players = []
+        for p in self.players:
+            q = Player.__new__(Player)
+            q.name = p.name
+            q.caravan = p.caravan[:]
+            q.hand = p.hand[:]
+            q.played = p.played[:]
+            q.point_cards = p.point_cards[:]
+            q.tokens = p.tokens[:]
+            players.append(q)
+        g.players = players
+
+        g.point_deck = self.point_deck[:]
+        g.point_row = self.point_row[:]
+        g.point_tokens = [t[:] for t in self.point_tokens]
+        g.merchant_deck = self.merchant_deck[:]
+        g.merchant_row = self.merchant_row[:]
+        g.row_crystals = [rc.copy() for rc in self.row_crystals]
+
+        g.log = self.log
+        g.event_log = self.event_log[:] if self.log else []
+        g._turn_counter = self._turn_counter
+        if self.log:
+            # Keyed by id() of shared card objects, and never mutated after
+            # _build_card_identity — safe to share.
+            g._card_ids = self._card_ids
+            g._instance_ids = self._instance_ids
+        return g
+
+    def shuffle_hidden(self, rng: random.Random) -> None:
+        """Reshuffle both undrawn decks in place.
+
+        Call this on a *clone* before simulating an Acquire or Claim. Those
+        actions refill the row from the top of a deck; without a reshuffle a
+        bot would see the true next card — information no opponent has. Never
+        call it on a real game.
+        """
+        rng.shuffle(self.merchant_deck)
+        rng.shuffle(self.point_deck)
+
     # =====================================================================
     #  Legal-action enumeration  (used by AI; also handy for UI validation)
     # =====================================================================
-    def legal_actions(self) -> list[Action]:
+    def legal_actions(self, pruned: bool = False) -> list[Action]:
+        """Every legal move from the current state.
+
+        `pruned=True` returns a strategically-equivalent *subset*, for bots:
+        upgrade and trade options are deduplicated by the caravan they
+        produce (the engine otherwise enumerates distinct orderings that land
+        in the same place), and Acquire offers at most three payment
+        multisets per row slot instead of every affordable combination.
+
+        The default output is unchanged and exhaustive — the UI needs every
+        option a human could click. Only bots should pass pruned=True.
+        """
         if self.game_over:
             return []
         acts: list[Action] = []
@@ -278,9 +373,11 @@ class Game:
             if isinstance(card, CrystalCard):
                 acts.append(PlayCrystal(i))
             elif isinstance(card, UpgradeCard):
-                acts.extend(PlayUpgrade(i, u) for u in self._upgrade_options(p, card.steps))
+                opts = (self._upgrade_options_pruned(p, card.steps) if pruned
+                        else self._upgrade_options(p, card.steps))
+                acts.extend(PlayUpgrade(i, u) for u in opts)
             elif isinstance(card, TradeCard):
-                acts.extend(self._trade_options(p, i, card))
+                acts.extend(self._trade_options(p, i, card, pruned))
 
         # --- Acquire ---
         for j, card in enumerate(self.merchant_row):
@@ -289,7 +386,9 @@ class Game:
             if j == 0:
                 acts.append(Acquire(0, ()))           # leftmost is free
             elif p.total_crystals() >= j:
-                for pay in self._payment_options(p, j):
+                pays = (self._payment_options_pruned(p, j) if pruned
+                        else self._payment_options(p, j))
+                for pay in pays:
                     acts.append(Acquire(j, pay))
 
         # --- Rest ---
@@ -322,10 +421,67 @@ class Game:
                     yield from rec(nxt, chosen + (c,))
         yield from rec(p.caravan[:], ())
 
-    def _trade_options(self, p: Player, idx: int, card: TradeCard) -> Iterator[PlayTrade]:
+    def _upgrade_options_pruned(self, p: Player, steps: int) -> list[tuple[Crystal, ...]]:
+        """Like _upgrade_options, but one option per *resulting caravan*.
+
+        The exhaustive version enumerates orderings: upgrading yellow then
+        green and green then yellow are separate entries that leave the
+        caravan in the same state, so a bot scores the same position twice.
+        Keeping the first sequence that reaches each caravan also prefers the
+        shortest one, since the search widens by length.
+
+        The do-nothing option `()` is deliberately kept. It looks useless, but
+        it is the only way to discard an upgrade card without touching the
+        caravan — which matters when every available step would break a golem
+        cost you can already afford (e.g. holding exactly 2Y for a 2Y golem).
+
+        Cheaper than the exhaustive version, not just narrower: if a caravan
+        has already been reached in fewer steps, every caravan reachable from
+        here is reachable from there too (with steps to spare), so the branch
+        is abandoned. Each distinct caravan is therefore expanded once.
+        """
+        seen: dict[tuple[int, ...], tuple[Crystal, ...]] = {}
+        depth: dict[tuple[int, ...], int] = {}
+
+        def rec(caravan: list[int], chosen: tuple[Crystal, ...]) -> None:
+            key = tuple(caravan)
+            prev = depth.get(key)
+            if prev is not None and prev <= len(chosen):
+                return
+            depth[key] = len(chosen)
+            if key not in seen:
+                seen[key] = chosen
+            if len(chosen) == steps:
+                return
+            for c in (Crystal.YELLOW, Crystal.GREEN, Crystal.TURQUOISE):
+                if caravan[c] > 0:
+                    nxt = caravan[:]
+                    nxt[c] -= 1
+                    nxt[c + 1] += 1
+                    rec(nxt, chosen + (c,))
+
+        rec(p.caravan[:], ())
+        return list(seen.values())
+
+    def _trade_options(self, p: Player, idx: int, card: TradeCard,
+                       pruned: bool = False) -> Iterator[PlayTrade]:
         cost = card.cost_counter()
         # max times limited by each cost color available
         max_times = min((p.caravan[c] // n for c, n in cost.items()), default=0)
+        if not pruned:
+            for t in range(1, max_times + 1):
+                yield PlayTrade(idx, t)
+            return
+        # Deduplicate by resulting caravan. Repeating a trade t times moves the
+        # caravan by t*(gain - cost), so two different repeat counts can only
+        # land in the same place when gain == cost — a no-op trade. No card in
+        # the compendium is one, so this is a single check up front rather than
+        # per-repetition work: either every count is distinct, or all of them
+        # collapse to one.
+        if card.gain_counter() == cost:
+            if max_times:
+                yield PlayTrade(idx, 1)
+            return
         for t in range(1, max_times + 1):
             yield PlayTrade(idx, t)
 
@@ -342,28 +498,101 @@ class Game:
                 seen.add(key)
                 yield key
 
+    def _payment_options_pruned(self, p: Player, j: int) -> list[tuple[Crystal, ...]]:
+        """At most three payment multisets for taking the card at slot `j`.
+
+        The exhaustive version builds every C(total, j) combination and then
+        throws ~90% of them away as duplicate multisets; at a full caravan
+        that's 252 combinations collapsing to 28 options, all of which a bot
+        then scores. These three cover the strategically distinct intents:
+
+          1. cheapest — spend the lowest crystals in the upgrade chain
+          2. most-surplus — spend from whatever colour you hold most of
+          3. preserve — spend without emptying any colour entirely
+
+        Caller guarantees p.total_crystals() >= j.
+
+        A fourth ("keep the colours my best target golem needs") is in the
+        brief but needs the TTC machinery from Step 2, so it isn't here yet.
+        """
+        car = p.caravan
+        opts: list[tuple[Crystal, ...]] = []
+
+        # 1. cheapest colors first
+        pick: list[Crystal] = []
+        for c in range(4):
+            take = min(car[c], j - len(pick))
+            pick.extend([Crystal(c)] * take)
+            if len(pick) == j:
+                break
+        opts.append(tuple(pick))
+
+        # 2. most-surplus colors first (ties break to the cheaper color)
+        remain = car[:]
+        pick = []
+        while len(pick) < j:
+            c = max(range(4), key=lambda x: (remain[x], -x))
+            remain[c] -= 1
+            pick.append(Crystal(c))
+        opts.append(tuple(sorted(pick)))
+
+        # 3. keep at least one of every color held, if that's possible at all
+        remain = car[:]
+        pick = []
+        for c in range(4):
+            while remain[c] > 1 and len(pick) < j:
+                remain[c] -= 1
+                pick.append(Crystal(c))
+            if len(pick) == j:
+                break
+        if len(pick) < j:          # can't be done; fall back to cheapest
+            for c in range(4):
+                while remain[c] > 0 and len(pick) < j:
+                    remain[c] -= 1
+                    pick.append(Crystal(c))
+                if len(pick) == j:
+                    break
+        opts.append(tuple(sorted(pick)))
+
+        out: list[tuple[Crystal, ...]] = []
+        seen: set[tuple[Crystal, ...]] = set()
+        for o in opts:
+            if o not in seen:
+                seen.add(o)
+                out.append(o)
+        return out
+
     # =====================================================================
     #  Apply an action
     # =====================================================================
-    def apply_action(self, action: Action) -> None:
-        if self.game_over:
+    def apply_action(self, action: Action, validate: bool = True) -> None:
+        """Apply `action`, mutating the game.
+
+        `validate=False` skips the legality checks. Use it ONLY for an action
+        that came straight out of this same game's `legal_actions()` — i.e. on
+        a bot's internal clone during search. An illegal action applied this
+        way corrupts the game silently instead of raising. Server code must
+        never pass it.
+        """
+        if validate and self.game_over:
             raise IllegalAction("game is over")
         p = self.player
         acting_seat = self.current
         caravan_before = p.caravan[:] if self.log else None
+        self.last_discard = [0, 0, 0, 0]
 
         if isinstance(action, PlayCrystal):
-            action_type, info = "PlayCrystal", self._play_crystal(p, action)
+            action_type, info = "PlayCrystal", self._play_crystal(p, action, validate)
         elif isinstance(action, PlayUpgrade):
-            action_type, info = "PlayUpgrade", self._play_upgrade(p, action)
+            action_type, info = "PlayUpgrade", self._play_upgrade(p, action, validate)
         elif isinstance(action, PlayTrade):
-            action_type, info = "PlayTrade", self._play_trade(p, action)
+            action_type, info = "PlayTrade", self._play_trade(p, action, validate)
         elif isinstance(action, Acquire):
-            action_type, info = "Acquire", self._acquire(p, action)
+            action_type, info = "Acquire", self._acquire(p, action, validate)
         elif isinstance(action, Rest):
-            action_type, info = "Rest", self._rest(p)
+            action_type, info = "Rest", self._rest(p, validate)
         elif isinstance(action, Claim):
-            action_type, info = "Claim", self._claim(p, action)
+            action_type, info = "Claim", self._claim(p, action, validate)
         else:
             raise IllegalAction(f"unknown action {action!r}")
 
@@ -384,41 +613,55 @@ class Game:
     # cost, PlayTrade's repeat count, Claim's token). Cheap to build even
     # when unused; the real cost of logging (id lookups, dict-of-dicts,
     # the append itself) stays fully behind the `if self.log` gate above.
-    def _play_crystal(self, p: Player, a: PlayCrystal) -> dict:
-        card = self._pop_playable(p, a.hand_index, CrystalCard)
+    def _play_crystal(self, p: Player, a: PlayCrystal, validate: bool = True) -> dict:
+        if validate:
+            card = self._pop_playable(p, a.hand_index, CrystalCard)
+        else:
+            card = p.hand.pop(a.hand_index)
         for color, n in card.gain:
             p.add(color, n)
         p.played.append(card)
         return {"cards": [card]}
 
-    def _play_upgrade(self, p: Player, a: PlayUpgrade) -> dict:
-        card = p.hand[a.hand_index] if 0 <= a.hand_index < len(p.hand) else None
-        if not isinstance(card, UpgradeCard):
-            raise IllegalAction("not an upgrade card")
-        if len(a.upgrades) > card.steps:
-            raise IllegalAction("too many upgrade steps")
-        # validate against a copy first
-        test = p.caravan[:]
-        for c in a.upgrades:
-            if not Crystal(c).can_upgrade or test[c] <= 0:
-                raise IllegalAction("illegal upgrade step")
-            test[c] -= 1
-            test[c + 1] += 1
-        p.caravan = test
+    def _play_upgrade(self, p: Player, a: PlayUpgrade, validate: bool = True) -> dict:
+        if validate:
+            card = p.hand[a.hand_index] if 0 <= a.hand_index < len(p.hand) else None
+            if not isinstance(card, UpgradeCard):
+                raise IllegalAction("not an upgrade card")
+            if len(a.upgrades) > card.steps:
+                raise IllegalAction("too many upgrade steps")
+            # validate against a copy first
+            test = p.caravan[:]
+            for c in a.upgrades:
+                if not Crystal(c).can_upgrade or test[c] <= 0:
+                    raise IllegalAction("illegal upgrade step")
+                test[c] -= 1
+                test[c + 1] += 1
+            p.caravan = test
+        else:
+            card = p.hand[a.hand_index]
+            caravan = p.caravan
+            for c in a.upgrades:
+                caravan[c] -= 1
+                caravan[c + 1] += 1
         p.hand.pop(a.hand_index)
         p.played.append(card)
         return {"cards": [card]}
 
-    def _play_trade(self, p: Player, a: PlayTrade) -> dict:
-        card = p.hand[a.hand_index] if 0 <= a.hand_index < len(p.hand) else None
-        if not isinstance(card, TradeCard):
-            raise IllegalAction("not a trade card")
-        if a.times < 1:
-            raise IllegalAction("must trade at least once")
+    def _play_trade(self, p: Player, a: PlayTrade, validate: bool = True) -> dict:
+        if validate:
+            card = p.hand[a.hand_index] if 0 <= a.hand_index < len(p.hand) else None
+            if not isinstance(card, TradeCard):
+                raise IllegalAction("not a trade card")
+            if a.times < 1:
+                raise IllegalAction("must trade at least once")
+        else:
+            card = p.hand[a.hand_index]
         cost, gain = card.cost_counter(), card.gain_counter()
-        for c, n in cost.items():
-            if p.caravan[c] < n * a.times:
-                raise IllegalAction("not enough crystals to trade")
+        if validate:
+            for c, n in cost.items():
+                if p.caravan[c] < n * a.times:
+                    raise IllegalAction("not enough crystals to trade")
         for c, n in cost.items():
             p.caravan[c] -= n * a.times
         for c, n in gain.items():
@@ -427,14 +670,15 @@ class Game:
         p.played.append(card)
         return {"cards": [card], "times": a.times}
 
-    def _acquire(self, p: Player, a: Acquire) -> dict:
+    def _acquire(self, p: Player, a: Acquire, validate: bool = True) -> dict:
         j = a.row_index
-        if not (0 <= j < self.MERCHANT_ROW) or self.merchant_row[j] is None:
-            raise IllegalAction("no merchant card there")
-        if len(a.payment) != j:
-            raise IllegalAction(f"must place exactly {j} crystals")
+        if validate:
+            if not (0 <= j < self.MERCHANT_ROW) or self.merchant_row[j] is None:
+                raise IllegalAction("no merchant card there")
+            if len(a.payment) != j:
+                raise IllegalAction(f"must place exactly {j} crystals")
         pay = Counter(a.payment)
-        if not p.has(pay):
+        if validate and not p.has(pay):
             raise IllegalAction("cannot afford payment")
         # pay: one crystal onto each card to the left
         for k, color in enumerate(a.payment):
@@ -449,21 +693,21 @@ class Game:
         self._slide_and_refill_merchants(j)
         return {"cards": [card], "row_index": j, "cost_paid": pay}
 
-    def _rest(self, p: Player) -> dict:
-        if not p.played:
+    def _rest(self, p: Player, validate: bool = True) -> dict:
+        if validate and not p.played:
             raise IllegalAction("nothing to rest")
         cards = list(p.played)
         p.hand.extend(p.played)
         p.played.clear()
         return {"cards": cards}
 
-    def _claim(self, p: Player, a: Claim) -> dict:
+    def _claim(self, p: Player, a: Claim, validate: bool = True) -> dict:
         j = a.row_index
         pc = self.point_row[j] if 0 <= j < self.POINT_ROW else None
-        if pc is None:
+        if validate and pc is None:
             raise IllegalAction("no point card there")
         cost = pc.cost_counter()
-        if not p.has(cost):
+        if validate and not p.has(cost):
             raise IllegalAction("cannot pay point-card cost")
         for c, n in cost.items():
             p.caravan[c] -= n
@@ -504,10 +748,13 @@ class Game:
     def _enforce_caravan_limit(self, p: Player) -> None:
         # NOTE: player "chooses" which to drop; here we drop cheapest first.
         # For a real UI/AI, surface this as a sub-decision instead.
+        # What got dropped is recorded in self.last_discard (per-color counts)
+        # for the acting player only — it is reset at the top of every action.
         while p.total_crystals() > CARAVAN_LIMIT:
             for c in range(4):
                 if p.caravan[c] > 0:
                     p.caravan[c] -= 1
+                    self.last_discard[c] += 1
                     break
 
     def _advance_turn(self) -> None:
@@ -528,8 +775,8 @@ class Game:
         """One-time id assignment, built the moment logging turns on for
         this game. `card_id` is a compendium-position string ("merchant:13",
         "golem:7", "start:0"/"start:1") — stable across *games*, since it's
-        just each card's fixed index into MERCHANT_DECK/POINT_DECK (module
-        globals swapped in by server/engine_path.py; _setup() only shuffles
+        just each card's fixed index into this game's deck sources
+        (self._merchant_source / self._point_source; _setup() only shuffles
         a *copy* of them, so their own order never changes). `instance_id`
         is a plain incrementing int, unique to one physical card copy
         *within this one game* — starting cards get one instance per player
@@ -557,9 +804,9 @@ class Game:
             self._instance_ids[id(card)] = next_instance
             next_instance += 1
 
-        for i, c in enumerate(MERCHANT_DECK):
+        for i, c in enumerate(self._merchant_source):
             register(c, f"merchant:{i}")
-        for i, c in enumerate(POINT_DECK):
+        for i, c in enumerate(self._point_source):
             register(c, f"golem:{i}")
         # Built fresh per player above (not drawn from a shared list), so
         # every player's own copy gets the same card_id (same design) but
@@ -654,11 +901,23 @@ class Game:
 
 
 # ---------------------------------------------------------------------------
-# SAMPLE DECKS  <-- replace with your transcription of the physical cards
+# Decks
 # ---------------------------------------------------------------------------
+# `Game` plays with the real 43/36-card compendium from century_cards.py by
+# default (see _default_decks). The small hand-written decks below predate the
+# transcription; they're kept because they're tiny and correct-by-construction,
+# which makes them useful for tests that want a short, predictable game. Pass
+# them explicitly: Game(names, merchant_deck=SAMPLE_MERCHANT_DECK, ...).
+#
+# MERCHANT_DECK / POINT_DECK are module-level *overrides*, None by default.
+# Setting them (as server/engine_path.py has always done) forces every new
+# Game onto those lists; leaving them None uses the compendium.
 Y, G, T, M = Crystal.YELLOW, Crystal.GREEN, Crystal.TURQUOISE, Crystal.MAGENTA
 
-MERCHANT_DECK: list[MerchantCard] = [
+MERCHANT_DECK: Optional[list[MerchantCard]] = None
+POINT_DECK: Optional[list[PointCard]] = None
+
+SAMPLE_MERCHANT_DECK: list[MerchantCard] = [
     CrystalCard(((Y, 2),), "2 yellow"),
     CrystalCard(((G, 1),), "1 green"),
     CrystalCard(((Y, 1), (G, 1)), "1 yellow 1 green"),
@@ -673,7 +932,7 @@ MERCHANT_DECK: list[MerchantCard] = [
     CrystalCard(((G, 2),), "2 green"),
 ]
 
-POINT_DECK: list[PointCard] = [
+SAMPLE_POINT_DECK: list[PointCard] = [
     PointCard(((Y, 2), (G, 2)), 8, "2Y2G"),
     PointCard(((T, 2),), 9, "2T"),
     PointCard(((M, 2),), 12, "2M"),
@@ -685,6 +944,42 @@ POINT_DECK: list[PointCard] = [
     PointCard(((G, 4),), 10, "4G"),
     PointCard(((M, 1), (T, 1), (G, 1)), 13, "1M1T1G"),
 ]
+
+
+_COMPENDIUM: Optional[tuple[list, list]] = None
+
+
+def _compendium() -> tuple[list, list]:
+    """The real card lists from century_cards.py, imported lazily and cached.
+
+    Lazy because century_cards does `from century_engine import ...` at its
+    top — importing it at *this* module's import time would be circular. By
+    the time a Game is constructed both modules are fully loaded, so it's safe.
+
+    The fallback covers being imported as `engine.century_engine` (a PEP 420
+    namespace package) from the repo root, where a bare `import century_cards`
+    can't resolve: century_cards imports the engine flat, so its own directory
+    has to be importable.
+    """
+    global _COMPENDIUM
+    if _COMPENDIUM is None:
+        try:
+            import century_cards as _c
+        except ModuleNotFoundError:
+            import os
+            _here = os.path.dirname(os.path.abspath(__file__))
+            if _here not in sys.path:
+                sys.path.insert(0, _here)
+            import century_cards as _c
+        _COMPENDIUM = (_c.MERCHANT_CARDS, _c.POINT_CARDS)
+    return _COMPENDIUM
+
+
+def _default_decks() -> tuple[list, list]:
+    """Module-level overrides win; otherwise the compendium."""
+    merchant, point = _compendium()
+    return (MERCHANT_DECK if MERCHANT_DECK is not None else merchant,
+            POINT_DECK if POINT_DECK is not None else point)
 
 
 # ---------------------------------------------------------------------------
