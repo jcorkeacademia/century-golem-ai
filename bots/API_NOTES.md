@@ -565,3 +565,106 @@ One judgement call worth recording: the fallback uses the shortfall at the
 specifies. The difference is large — for an empty caravan chasing 5M it is
 19 turns rather than 23 — and it is easy to get wrong, so there is a test
 pinning the arithmetic.
+
+---
+
+## 9. Step 3 results
+
+`bots/features.py` (features, value function, `explain`) and
+`bots/calibrate.py` (scales). 47 new tests; 122 pass overall.
+
+### 9.1 The twelve core features
+
+| key | group | sym | what |
+|---|---|---|---|
+| `golem_points` | score | ✓ | points on claimed golems |
+| `token_points` | score | ✓ | copper×3 + silver×1 |
+| `cry_y/g/b/m` | caravan | – | crystals held, per colour |
+| `best_target` | targets | ✓ | max over row of `points / (1 + TTC)` |
+| `token_race` | targets | – | token value / (1 + TTC) over the two token slots |
+| `throughput` | engine | ✓ | mean YE/turn over owned cards |
+| `playable_now` | hand | – | usable output sitting in hand |
+| `exhausted` | hand | – | output locked in the played pile |
+| `dead_hand` | hand | – | 1 when the hand can produce nothing |
+
+Only four are `symmetric` — the ones worth measuring an opponent by. Your
+leftover yellow is not a thing to deny someone.
+
+`token_race` gets the silver-reflow rule for free by reading the pile's own
+top token: once copper empties the engine slides silver into slot 0, so
+whatever sits there is what you would actually be handed. Tested directly.
+
+### 9.2 `Ctx` — the reason this is affordable
+
+Step 2 measured TTC at ~0.2 ms a call, dominating a decision. `Ctx` computes
+`ttc_row` once per (state, player) and shares it with every feature.
+`test_ctx_computes_ttc_once_per_player` pins this with a call counter — it is
+the kind of thing that silently regresses into a 5× slowdown.
+
+### 9.3 Terminal handling uses seat, not name
+
+`terminal_value` identifies the winner by `_winner_index()`, not
+`winner()`. The name form walks straight into API_NOTES §4.1 — two bots of
+the same type in one match share a name, and the win/loss sign would be
+wrong for one of them. Pinned by `test_terminal_uses_seat_not_name`.
+
+### 9.4 Calibration and the scale trap
+
+200 TempGreedyBot self-play games, 21,164 observations, ttc_depth 3:
+
+| feature | mean | std | p95 | zero% | **norm p95** |
+|---|---|---|---|---|---|
+| golem_points | 26.96 | 19.44 | 60.0 | 14% | 3.09 |
+| token_points | 1.45 | 1.88 | 6.0 | 48% | 3.19 |
+| cry_y | 2.50 | 1.96 | 6.0 | 19% | 3.06 |
+| cry_g | 1.74 | 1.67 | 5.0 | 31% | 2.99 |
+| cry_b | 0.80 | 1.07 | 3.0 | 54% | 2.80 |
+| cry_m | 0.36 | 0.71 | 2.0 | 75% | 2.81 |
+| best_target | 4.65 | 3.15 | 12.0 | 0% | 3.81 |
+| token_race | 0.86 | 0.48 | 1.8 | 0% | 3.66 |
+| throughput | 1.89 | 0.42 | 2.5 | 0% | **5.97** |
+| playable_now | 5.19 | 5.35 | 16.0 | 16% | 2.99 |
+| exhausted | 6.26 | 6.55 | 20.0 | 15% | 3.05 |
+| dead_hand | 0.16 | 0.37 | 1.0 | 84% | 2.70 |
+
+**The trap did not materialise, but the guard is worth keeping.** The brief's
+`scale = max(std, 1e-6)` has a floor that protects against nothing: a feature
+that barely varies gets a small std, and dividing by it amplifies that
+feature. The diagnostic that actually matters is `norm p95 = p95 / scale` —
+what a weight of 1.0 buys in a strong position. All twelve land between 2.70
+and 5.97, so a weight means roughly the same thing for each and hand-set
+weights are directly comparable. `calibrate.py` flags anything outside
+(1.5, 6.0) rather than shipping it silently.
+
+`throughput` at 5.97 sits at the edge of the band — it is nearly constant in
+real play (mean 1.89, std 0.42, range 1.33–2.9), so normalising inflates it
+almost 6×. Watch its weight: a hand-set 0.5 is really more like a 3.0.
+
+**Scales depend on the sampling policy.** They come from TempGreedyBot, a
+stand-in for Step 4's GreedyBot. Recalibrate once the real one exists,
+and note that every weight fitted against the old scales is then stale.
+
+### 9.5 `explain()` works, with one caveat
+
+```
+seat 1 (B)  caravan [4, 4, 0, 0]  phase 0.33  14 legal moves
+#1 PlayTrade(hand 5, x1)      V=+7.64
+   throughput +2.52   best_target +1.91   token_race +1.42   cry_m +1.27 ...
+#2 PlayCrystal(hand 2)        V=+6.92
+   throughput +2.52   best_target +2.03   token_race +1.42 ...
+```
+
+**Several contributions are identical across moves** — `golem_points +1.08`,
+`token_points +0.96`, `-opp:throughput -1.19` appear on every line, because
+one action rarely changes them. They inflate V without discriminating. The
+ranking is still correct (a constant added to every candidate cannot change
+the order), but for *reading* the bot, the differences are what matter. A
+delta view against the best alternative would be more legible; worth adding
+when the analysis in Step 10 needs it.
+
+### 9.6 Deviations from the brief
+
+1. **TempGreedyBot** is a throwaway sampler, as §Step 3.3 permits. The real
+   GreedyBot lands in Step 4 and the scales must be recomputed then.
+2. **`norm p95` is an addition**, not in the brief. The brief's own scale
+   formula is kept exactly; this is a diagnostic on top of it.
