@@ -1,0 +1,11 @@
+tuned_mean vs greedy   2p, 1000 games (500 seeds x 2 rotations)
+  56.7s   17.6 games/s   mean length 81 actions   capped 0   unfinished 0
+
+  bot                 win rate            95% CI   score  margin  golems  pts/gol   ended
+  ---------------------------------------------------------------------------------------
+  tuned_mean            97.9%    [96.8%, 98.6%]    77.6   +32.1    5.96     12.2   95.8%
+  greedy                 2.1%      [1.4%, 3.2%]    45.5   -32.1    3.58     11.3    4.2%
+
+  win rate by seat (each bot plays every seat equally often):
+    tuned_mean        seat 0: 99.0%   seat 1: 96.8%
+    greedy            seat 0:  3.2%   seat 1:  1.0%
