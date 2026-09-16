@@ -334,12 +334,18 @@ def play_game(bots: Sequence[Bot], seed: int, cap: int = ACTION_CAP) -> dict:
     game = Game(names, seed=seed)
 
     actions = 0
+    ender: Optional[int] = None      # seat whose claim started the final round
     while not game.game_over and actions < cap:
-        action = bots[game.current].choose(game)
+        seat = game.current
+        action = bots[seat].choose(game)
         if action is None:
             break
         game.apply_action(action)
         actions += 1
+        # The engine records *that* the end was triggered, not by whom, so
+        # catch the transition here: whoever just acted is the one who did it.
+        if ender is None and game.end_triggered:
+            ender = seat
 
     scores = [p.score() for p in game.players]
     best = max(scores)
@@ -350,7 +356,9 @@ def play_game(bots: Sequence[Bot], seed: int, cap: int = ACTION_CAP) -> dict:
         "scores": scores,
         "winner": winner,
         "golems": [len(p.point_cards) for p in game.players],
+        "golem_points": [sum(pc.points for pc in p.point_cards) for p in game.players],
         "actions": actions,
         "capped": actions >= cap,
         "finished": game.game_over,
+        "ender": ender,
     }

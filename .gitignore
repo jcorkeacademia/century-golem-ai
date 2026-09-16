@@ -22,12 +22,18 @@ web/dist/
 # --- Logs ---
 *.log
 
-# --- Bot run outputs (Step 5+): keep summaries, drop raw run data ---
+# --- Bot run outputs (Step 5+) ---
+# Arena results are the evidence behind every win-rate claim and are tiny
+# (~2 KB a run), so they are tracked. Tuning produces a file per generation
+# per run, which is not, so only its summaries are kept.
 results/**
 !results/
 !results/**/
 !results/*.md
+!results/arena/**/summary.txt
+!results/arena/**/result.json
 !results/**/summary.json
+!results/**/best.json
 
 # --- Editor / OS ---
 .claude/settings.local.json

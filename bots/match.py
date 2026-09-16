@@ -1,8 +1,13 @@
 """Head-to-head comparison, paired and seat-swapped.
 
-The minimum needed to answer "does A beat B?" honestly. Step 5 grows this
-into the real arena (multiprocessing, per-seat breakdowns, JSON output); this
-module exists so Step 4's ">60% of games" bar can be checked at all.
+A small single-process convenience for two bots, kept because it takes live
+bot *factories* rather than the picklable spec strings `arena` needs, which
+makes it convenient in tests and at a REPL.
+
+**For anything you intend to report, use `bots.arena`** — it runs in parallel,
+handles 2-5 players with full cyclic seat rotation, and writes results to
+disk. The statistics here are imported from there rather than reimplemented,
+so the two can never quietly disagree.
 
     python -m bots.match --a handset_v1 --b greedy --games 300
 
@@ -27,26 +32,11 @@ import statistics
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
+from bots.arena import wilson          # one implementation, not two
 from bots.bots import ACTION_CAP, GreedyBot, RandomBot, WeightedBot, play_game
 from bots.features import Scales, Weights
 
 BotFactory = Callable[[int], object]     # seed -> bot
-
-
-def wilson(wins: float, n: int, z: float = 1.96) -> tuple[float, float]:
-    """95% confidence interval for a win rate.
-
-    Wilson rather than the textbook normal interval: it stays inside [0, 1]
-    and behaves at small samples and extreme rates, where the normal one
-    produces nonsense like a 103% upper bound.
-    """
-    if n == 0:
-        return (0.0, 1.0)
-    p = wins / n
-    d = 1 + z * z / n
-    centre = (p + z * z / (2 * n)) / d
-    halfwidth = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
-    return (max(0.0, centre - halfwidth), min(1.0, centre + halfwidth))
 
 
 @dataclass

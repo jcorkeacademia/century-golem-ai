@@ -1,0 +1,11 @@
+handset_v1 vs greedy   2p, 2000 games (1000 seeds x 2 rotations)
+  342.5s   5.8 games/s   mean length 97 actions   capped 0   unfinished 0
+
+  bot                 win rate            95% CI   score  margin  golems  pts/gol   ended
+  ---------------------------------------------------------------------------------------
+  handset_v1            91.5%    [90.2%, 92.7%]    77.9   +23.9    5.82     12.5   84.3%
+  greedy                 8.5%      [7.3%, 9.8%]    54.0   -23.9    4.36     11.3   15.7%
+
+  win rate by seat (each bot plays every seat equally often):
+    handset_v1        seat 0: 91.4%   seat 1: 91.7%
+    greedy            seat 0:  8.3%   seat 1:  8.6%

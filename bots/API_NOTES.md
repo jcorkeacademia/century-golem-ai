@@ -834,3 +834,88 @@ Held-out is *higher*, so there is no overfitting to report.
   ablation-gates *new* features (Step 7) and defers the full table to Step 10.
   Worth running a cheap ablation right after the first tuning run rather than
   carrying possibly-inert features through Steps 7-9.
+
+---
+
+## 12. Step 5 results
+
+`bots/arena.py`. 37 new tests; 188 pass.
+
+**Acceptance criterion met.** Two 1,000-seed runs on disjoint seed sets, each
+2,000 games after rotation:
+
+| run | seeds | win rate | 95% CI |
+|---|---|---|---|
+| A | 0–999 | 91.3% | [90.0%, 92.5%] |
+| B | 500000–500999 | 91.5% | [90.2%, 92.7%] |
+
+The intervals overlap almost entirely, so the number is a property of the
+bots rather than of the seeds. Saved under `results/arena/`, which is now
+tracked in git — a win-rate claim without its run data is not evidence.
+
+### 12.1 Seat rotation demonstrably works
+
+`handset_v1` scored 91.0% in seat 0 and 91.6% in seat 1 (run A); 91.4% / 91.7%
+(run B). Century is not seat-symmetric — starting crystals differ by seat and
+the engine breaks score ties toward the *highest* seat — so an unrotated
+number would be measuring the seating as much as the bot.
+`test_seat_rotation_cancels_the_seat_advantage` pins this: identical bots must
+come out with 0.5 inside their interval.
+
+### 12.2 Bots are named by strings because this platform cannot fork
+
+Windows offers only `spawn`, so everything crossing into a worker must pickle
+— and a lambda or a live bot object does not. Workers therefore receive specs
+(`"greedy"`, `"handset_v1"`, `"greedy:build_until=0"`) and build their own
+bots. `test_specs_must_be_picklable` guards it.
+
+### 12.3 A caching bug made the arena non-deterministic
+
+The first version cached constructed bots per process, keyed by (spec, seed).
+That looked like an obvious optimisation and was wrong: **a bot carries live
+RNG state**, so reusing one across games made each game's outcome depend on
+what had run before it in that worker. With `workers=1` and `workers=4` the
+same seeds produced different scores.
+
+Now only the *immutable* part is cached — the parsed weights file and scales —
+and every game gets a fresh bot seeded as a pure function of its task.
+`test_worker_count_does_not_change_the_result` is the regression, and it is
+worth keeping: this class of bug does not fail loudly, it just quietly makes
+every later result irreproducible.
+
+### 12.4 Throughput, and what Step 6 actually costs
+
+| workers | games/s |
+|---|---|
+| 1 | 0.6 |
+| 4 | 1.5 |
+| 18 (24-game run) | 2.2 |
+| **18 (2,000-game run)** | **5.3–5.8** |
+
+The small-run figure was startup-dominated — 18 workers each importing the
+engine and loading weights for barely one game apiece. At real scale it is
+~5.5 games/s on 20 cores, a ~9× speedup over single-process.
+
+**Projection for Step 6**, at 12 candidates × 200 games per generation
+(2,400 games ≈ 7.3 min):
+
+| generations | wall clock |
+|---|---|
+| 20 | ~2.5 h |
+| 50 | ~6 h |
+| 100 | ~12 h |
+
+Plus validation every 10 generations (1,000 games against each of two
+opponents ≈ 12 min). So a 50-generation run is an overnight job, and Step 10's
+"5–10 tuning runs from different seeds" is **several days** at these settings.
+That is the number to decide against before starting: fewer games per
+candidate makes fitness noisier, and a lower `ttc_depth` during tuning changes
+what is being tuned. Worth settling deliberately rather than discovering it
+three days in.
+
+### 12.5 `match.py` kept, but subordinate
+
+`bots/match.py` survives as a single-process convenience that takes live bot
+factories (handy in tests and at a REPL, where spec strings are awkward). Its
+Wilson implementation was deleted and is now imported from `arena`, so the two
+cannot quietly disagree about a confidence interval.
