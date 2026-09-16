@@ -320,14 +320,36 @@ def _successors(state: State, target: Caravan) -> list[State]:
     return out
 
 
+# Widest frontier the search will carry from one simulated turn to the next.
+#
+# Without this the search is exhaustive, and its cost explodes with hand size
+# whenever the target is *not* reachable — which is roughly half of all calls
+# (see API_NOTES §8.4). Measured at depth 3 against an unreachable 5M golem:
+#
+#     hand size    2      4      6      8     10     12     15
+#     ms        0.020  0.036  0.209  0.242  0.621  1.326  10.295
+#
+# A bot that buys cards ends up holding 10-15, so this is the common case, not
+# the tail. The beam keeps only the most promising states per turn — lowest
+# shortfall first, then most yellow-equivalent — which bounds the work at
+# roughly beam x depth x branching regardless of how big the hand gets.
+#
+# It makes TTC a heuristic rather than an exact breadth-first answer: a plan
+# that needs an unpromising intermediate step can be missed, and TTC can come
+# back higher than the truth. That is an acceptable trade for a feature input
+# that is already an estimate half the time, and it is what makes millions of
+# evaluations affordable in Step 6.
+BEAM_WIDTH = 32
+
+
 def ttc_state(caravan: Caravan, hand: tuple[int, ...], played: tuple[int, ...],
               target: Caravan, depth: int = 3,
-              throughput_hint: float = 0.0) -> float:
+              throughput_hint: float = 0.0, beam: int = BEAM_WIDTH) -> float:
     """Turns until `target` is payable from this state. See `ttc`."""
     if can_pay(caravan, target):
         return 0.0
 
-    key = (caravan, hand, played, target, depth, round(throughput_hint, 3))
+    key = (caravan, hand, played, target, depth, round(throughput_hint, 3), beam)
     hit = _TTC_CACHE.get(key)
     if hit is not None:
         return hit
@@ -338,7 +360,7 @@ def ttc_state(caravan: Caravan, hand: tuple[int, ...], played: tuple[int, ...],
     result: Optional[float] = None
 
     for turn in range(1, depth + 1):
-        nxt: list[State] = []
+        scored: list[tuple[int, int, State]] = []
         for st in frontier:
             for succ in _successors(st, target):
                 if succ in visited:
@@ -350,14 +372,17 @@ def ttc_state(caravan: Caravan, hand: tuple[int, ...], played: tuple[int, ...],
                 s = shortfall(succ[0], target)
                 if s < best_short:
                     best_short = s
-                nxt.append(succ)
+                scored.append((s, -ye_of(succ[0]), succ))
             if result is not None:
                 break
         if result is not None:
             break
-        if not nxt:
+        if not scored:
             break
-        frontier = nxt
+        if len(scored) > beam:
+            scored.sort(key=lambda t: (t[0], t[1]))
+            del scored[beam:]
+        frontier = [t[2] for t in scored]
 
     if result is None:
         # Nothing within the horizon. Extrapolate: the remaining shortfall at

@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 
 from bots._engine import Acquire, Claim, Game, PlayCrystal, PlayTrade, PlayUpgrade, Rest
 from bots import sim
+from bots.bots import GreedyBot
 from bots.features import CORE_FEATURES, Ctx, FEATURES, SCALES_PATH, DEFAULT_TTC_DEPTH
 from bots.sim import can_pay, cost_of, shortfall
 
@@ -44,14 +45,8 @@ DEGENERATE_STD = 0.05
 
 
 class TempGreedyBot:
-    """A stand-in until Step 4 builds the real GreedyBot.
-
-    Deliberately simple and rule-based — its only job is to generate positions
-    that look like real play rather than the nonsense random play produces
-    (which empties the merchant row and never claims anything). Calibration
-    scales depend on how the sampling bot plays, so these must be recomputed
-    once the real GreedyBot exists.
-    """
+    """Superseded by bots.bots.GreedyBot in Step 4; kept only so the Step 3
+    scales can be reproduced. Do not use for new calibration runs."""
 
     def __init__(self, rng: random.Random):
         self.rng = rng
@@ -121,7 +116,7 @@ def run(n_games: int, n_players: int, depth: int, seed: int, cap: int = 1200):
 
     for gi in range(n_games):
         rng = random.Random(seed + gi)
-        bot = TempGreedyBot(rng)
+        bot = GreedyBot(rng)
         g = Game([f"P{i}" for i in range(n_players)], seed=seed + gi)
         steps = 0
         while not g.game_over and steps < cap:
@@ -172,8 +167,33 @@ def summarise(samples):
     return scales, diags, flagged
 
 
+def correlations(samples) -> list[tuple[str, str, float]]:
+    """Pairwise correlation between features, strongest first.
+
+    Two features that measure the same thing split the credit for it during
+    tuning, and neither weight then means what it says. That breaks *reading*
+    the bot, which is the point of the project, even though the bot may play
+    fine. `throughput`, `playable_now` and `exhausted` are all computed from
+    the same owned cards, so they are the obvious suspects.
+    """
+    keys = list(CORE_FEATURES)
+    out = []
+    for i, a in enumerate(keys):
+        for b in keys[i + 1:]:
+            xs, ys = samples[a], samples[b]
+            try:
+                r = statistics.correlation(xs, ys)
+            except statistics.StatisticsError:
+                r = float("nan")     # one of them is constant
+            out.append((a, b, r))
+    out.sort(key=lambda t: -abs(t[2]) if t[2] == t[2] else 0)
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--correlations", action="store_true",
+                    help="also report pairwise feature correlations")
     ap.add_argument("--games", type=int, default=200)
     ap.add_argument("--players", type=int, default=2)
     ap.add_argument("--depth", type=int, default=DEFAULT_TTC_DEPTH)
@@ -181,7 +201,7 @@ def main() -> None:
     ap.add_argument("--out", default=str(SCALES_PATH))
     args = ap.parse_args()
 
-    print(f"calibrating on {args.games} TempGreedyBot self-play games "
+    print(f"calibrating on {args.games} GreedyBot self-play games "
           f"({args.players}p, ttc_depth={args.depth}) ...")
     samples, lengths, finished, elapsed = run(args.games, args.players, args.depth, args.seed)
     scales, diags, flagged = summarise(samples)
@@ -221,17 +241,31 @@ def main() -> None:
         print(f"\n  All {len(CORE_FEATURES)} features sit inside the band "
               f"{NORM_P95_BAND}, so hand-set weights are directly comparable.")
 
+    if args.correlations:
+        pairs = correlations(samples)
+        print("\n  Strongest feature correlations (|r| > 0.4):")
+        strong = [p for p in pairs if p[2] == p[2] and abs(p[2]) > 0.4]
+        if not strong:
+            print("    none — no two features are measuring the same thing")
+        for a, b, r in strong:
+            note = "  <-- near-duplicate" if abs(r) > 0.8 else ""
+            print(f"    {a:<14} {b:<14} r = {r:+.2f}{note}")
+        nan_pairs = [p for p in pairs if p[2] != p[2]]
+        if nan_pairs:
+            print(f"    ({len(nan_pairs)} pair(s) undefined — a constant feature)")
+
     blob = {
         "scales": scales,
         "diagnostics": diags,
         "meta": {
             "games": args.games, "players": args.players, "ttc_depth": args.depth,
-            "seed": args.seed, "sampler": "TempGreedyBot",
+            "seed": args.seed, "sampler": "GreedyBot",
             "observations": n, "finished": finished,
             "mean_game_length": statistics.fmean(lengths),
             "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "note": "Scales depend on the sampling policy. Recompute after "
-                    "Step 4 replaces TempGreedyBot with the real GreedyBot.",
+                    "any change to GreedyBot or to the feature set; every "
+                    "weight fitted against the old scales is then stale.",
         },
     }
     with open(args.out, "w") as fh:

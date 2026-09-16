@@ -472,6 +472,16 @@ def test_scales_file_is_present_and_covers_every_core_feature():
         assert key in s.values and s.values[key] > 0
 
 
+# `throughput` is genuinely outside the comparable band and it is not a
+# mistake to be fixed by widening the band. Every player builds a similar
+# engine, so it sits in a narrow range (~1.9-2.6) all game; dividing by that
+# small spread amplifies it about 9x. It is *not* redundant — its strongest
+# correlation with another feature is only r=0.42 against `exhausted` — so it
+# is kept, with its weight set through bots.make_handset's points-based intent
+# rather than typed directly. Pinned here so it cannot drift further unnoticed.
+KNOWN_WIDE = {"throughput": 10.0}
+
+
 def test_scales_are_in_the_comparable_band():
     """Normalisation is only useful if a weight of 1.0 means about the same
     thing for each feature — see calibrate.py's norm-p95 note."""
@@ -479,7 +489,18 @@ def test_scales_are_in_the_comparable_band():
     for key in CORE_FEATURES:
         d = s.diagnostics.get(key)
         assert d, key
-        assert 1.0 <= d["norm_p95"] <= 8.0, (key, d["norm_p95"])
+        ceiling = KNOWN_WIDE.get(key, 8.0)
+        assert 1.0 <= d["norm_p95"] <= ceiling, (key, d["norm_p95"], ceiling)
+
+
+def test_only_the_known_features_are_outside_the_band():
+    """A new feature outside the band must be noticed, not absorbed."""
+    s = Scales.load()
+    outside = {k for k in CORE_FEATURES
+               if not (1.0 <= s.diagnostics[k]["norm_p95"] <= 8.0)}
+    assert outside == set(KNOWN_WIDE), (
+        f"band membership changed: {outside} vs known {set(KNOWN_WIDE)}. "
+        "Recalibrate and decide deliberately — see API_NOTES §10.")
 
 
 def test_unit_scales_are_all_one():

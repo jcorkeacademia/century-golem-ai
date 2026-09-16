@@ -715,3 +715,122 @@ rather than carrying weights across a recalibration.
 rate improves by more than the confidence interval, or it enables an archetype
 in Step 9. Record feature, Δ win rate, CI and the kept/dropped call in
 `results/feature_log.md`.
+
+---
+
+## 11. Step 4 results
+
+`bots/bots.py` (the three bots), `bots/match.py` (paired comparison),
+`bots/make_handset.py` (weights from intent). 29 new tests; 151 pass.
+
+**Acceptance bar met: handset WeightedBot beats GreedyBot 90.8%** over 120
+games on held-out seeds, 95% CI [84.3%, 94.8%]. The bar was 60%.
+
+### 11.1 Two bugs the process caught
+
+**GreedyBot never bought a card.** The brief's rule order puts Acquire
+*below* "play the crystal card with the best output". `Create 2` returns to
+hand after every Rest, so the crystal rule fires every cycle and Acquire is
+unreachable. Measured: **zero acquisitions across 15 games**, every game ended
+holding only the two starting cards, and `throughput` was literally constant
+at (2+2)/(2+1) = 1.333 with std 0.000 across 21,000 calibration observations.
+
+A benchmark that never buys a card is no benchmark, and a calibration sampler
+with a frozen engine poisons every scale. Added rule 2 — acquire while owning
+fewer than `build_until` cards. Head-to-head against the brief's ordering:
+
+| build_until | 3 | 4 | **5** | 6 |
+|---|---|---|---|---|
+| win rate vs 0 | 59.6% | 68.8% | **70.8%** | 68.3% |
+
+Kept 5. `test_greedy_with_build_until_zero_reproduces_the_briefs_degenerate_bot`
+pins the original behaviour so the finding is not lost.
+
+**The first handset weights hoarded and never claimed.** Two compounding
+errors, both about pricing a *promise* against the *thing promised*:
+
+1. `best_target` is `points / (1 + TTC)`, so for a claimable golem it equals
+   that golem's full face value. Priced at 1.5 points per unit it exceeded
+   `golem_points` at 1.0 — claiming converted a large `best_target` into a
+   smaller `golem_points` and V went **down**. Result: 48 legal claims skipped
+   in one game, **0 wins in 120 games**, 0.75 golems to GreedyBot's 5.99.
+2. Dropping it to 0.6 was not enough, because the crystal weights
+   double-counted the same fact: you hold four blue *because* you are aiming
+   at a blue golem, so `cry_b` and `best_target` both charge for it. Claiming
+   an 11-point golem cost ~10.6 points of forfeited promise to gain 11. Still
+   0 golems.
+
+Fixed by pricing crystals at endgame value only (Y 0.05 up to M 0.55) and
+`best_target` at 0.35. `test_weighted_bot_claims_an_obviously_good_golem` is
+the regression: any weighting that declines a free 20-pointer is broken.
+
+### 11.2 TTC blew up with hand size — beam search added
+
+TTC was ~0.2 ms in Step 2, but Step 2 sampled positions from a bot holding
+2-5 cards. A bot that *buys* cards holds 10-15, and against an unreachable
+target the exhaustive search expands the whole tree:
+
+| hand size | 2 | 6 | 10 | 12 | 15 |
+|---|---|---|---|---|---|
+| ms/call | 0.020 | 0.209 | 0.621 | 1.326 | **10.295** |
+
+Roughly half of all TTC calls are against unreachable targets (section 8.4),
+so this is the common case, not the tail — and it would have made Step 6
+impossible. `sim.BEAM_WIDTH` (default 32) caps the frontier per simulated
+turn, keeping the lowest-shortfall states. Hand 15 drops from 10.295 ms to
+0.339 ms.
+
+Cost of the approximation, measured against exhaustive search on 160 varied
+positions:
+
+| beam | 64 | 32 | 16 | 8 | 4 |
+|---|---|---|---|---|---|
+| mean TTC error | +0.00 | +0.01 | +0.01 | +0.03 | +0.07 |
+| positions worse | 0 | 1 | 2 | 4 | 10 |
+
+TTC is now a heuristic, not an exact breadth-first answer: it can come back
+higher than the truth when a plan needs an unpromising intermediate step.
+Acceptable for a quantity that is already extrapolated half the time.
+
+### 11.3 Weights are generated from intent, not typed
+
+`bots/make_handset.py` holds `VALUE[feature]` — **victory points per raw unit**
+— and converts to weights with `w = VALUE * scale / scale[golem_points]`.
+
+This exists because a weight does not mean what it looks like: `throughput`
+has scale 0.28 and `golem_points` 19.76, so an identical weight gives ~9 units
+of V from one and ~3 from the other. Hand-setting in weight-space is
+indefensible; hand-setting in points is arguable. It also makes recalibration
+safe — re-run the script, intent unchanged, weights updated.
+
+Both bugs above were *visible* in points-space (`best_target` 1.5 > 1.0 is
+obviously wrong) and invisible in weight-space.
+
+### 11.4 Method: tuned on one seed set, reported on another
+
+Hand-tuning against a seed set and then reporting that same set measures how
+well the weights were fitted to the test. Tuning used seeds 0-19; the reported
+figure uses seeds 10000-10059, never seen during tuning.
+
+| | win rate |
+|---|---|
+| tuning seeds (0-19, 30 games) | 86.7% |
+| **held-out seeds (10000+, 120 games)** | **90.8%** CI [84.3%, 94.8%] |
+
+Held-out is *higher*, so there is no overfitting to report.
+
+### 11.5 Known issues going into Step 5
+
+* **Speed.** A WeightedBot-vs-GreedyBot game takes ~2.4 s; 120 games took
+  12.5 minutes single-threaded. Step 5's `multiprocessing.Pool` is not
+  optional — Step 6 needs hundreds of games per generation.
+* **`throughput` stays outside the comparable band** at norm p95 9.08. It is
+  not redundant (strongest correlation only r=0.42, vs `exhausted`), so it is
+  kept, pinned by `KNOWN_WIDE` in the tests so it cannot drift unnoticed.
+* **Correlations are all moderate** — strongest pairs: `best_target` /
+  `token_race` +0.70, `golem_points` / `token_points` +0.52, `throughput` /
+  `exhausted` +0.42. Nothing above 0.8, so no feature is a near-duplicate.
+* **The core twelve have never been ablation-tested.** The brief only
+  ablation-gates *new* features (Step 7) and defers the full table to Step 10.
+  Worth running a cheap ablation right after the first tuning run rather than
+  carrying possibly-inert features through Steps 7-9.
