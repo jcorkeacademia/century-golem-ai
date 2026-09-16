@@ -244,6 +244,9 @@ def test_default_depth_is_the_swept_value():
     """Depths 2, 3 and 4 were indistinguishable and depth 2 is 2.3x faster,
     so tuning and shipping both happen at 2 — see API_NOTES §13."""
     assert TuneConfig().depth == 2
+    # the pool opponent must run at the candidates' depth, not deeper
+    assert TuneConfig().pool_handset == "depth2"
+    assert TuneConfig().validate_handset == "handset_v1"
 
 
 # --------------------------------------------------------------------------

@@ -236,7 +236,16 @@ class TuneConfig:
     validate_every: int = 10
     validate_games: int = 500   # seeds; doubled by rotation
     hof_every: int = 5
-    handset: str = "handset_v1"
+    # The fitness pool's handset opponent runs at the CANDIDATES' depth, so a
+    # candidate is judged against the same brain it has. handset_v1 ships at
+    # ttc_depth=3; leaving it there made 45% of every generation's games pay
+    # the slow path (12.2 games/s at depth 2 against 5.4 at depth 3) and gave
+    # the benchmark a deeper search than the bots being scored. Measured: 527s
+    # for generation 0, a 7.2-hour projection for 50 generations.
+    pool_handset: str = "depth2"
+    # Validation is against the Step 4 artefact exactly as it ships, so the
+    # number stays comparable to the 90.8% recorded in API_NOTES §11.
+    validate_handset: str = "handset_v1"
 
     def as_dict(self) -> dict:
         return dict(self.__dict__)
@@ -246,7 +255,7 @@ def validate(best_path: Path, cfg: TuneConfig, pool: mp.Pool, seed_base: int) ->
     """Fresh games against fixed opponents — a yardstick the tuner never saw."""
     out = {}
     seeds = range(seed_base, seed_base + cfg.validate_games)
-    for opponent in ("greedy", cfg.handset):
+    for opponent in ("greedy", cfg.validate_handset):
         tasks = [(0, ([str(best_path), opponent], 2, s, r, cfg.cap))
                  for s in seeds for r in (0, 1)]
         res = list(pool.imap_unordered(_run_task, tasks, chunksize=8))
@@ -309,7 +318,7 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
             # different each generation so nothing can be overfitted.
             base = rng.randrange(10_000_000)
             seeds = list(range(base, base + n_seeds))
-            alloc = allocate(seeds, build_pool(cfg.handset, hof))
+            alloc = allocate(seeds, build_pool(cfg.pool_handset, hof))
             tasks = generation_tasks(specs, alloc, cfg.cap)
             results = list(pool.imap_unordered(_run_task, tasks, chunksize=8))
             fits = score_generation(results, len(xs))
@@ -367,7 +376,8 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
             if "validation" in record:
                 v = record["validation"]
                 line += (f"   [validate: greedy {v['greedy']['win_rate']:.1%}"
-                         f"  {cfg.handset} {v[cfg.handset]['win_rate']:.1%}]")
+                         f"  {cfg.validate_handset} "
+                         f"{v[cfg.validate_handset]['win_rate']:.1%}]")
             print(line, flush=True)
     finally:
         pool.close()
@@ -387,6 +397,11 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=18)
     ap.add_argument("--validate-every", type=int, default=10)
     ap.add_argument("--validate-games", type=int, default=500)
+    ap.add_argument("--pool-handset", default="depth2",
+                    help="handset opponent in the fitness pool; should match "
+                         "the candidates' ttc_depth")
+    ap.add_argument("--validate-handset", default="handset_v1",
+                    help="handset opponent for validation; the shipped artefact")
     ap.add_argument("--resume", default=None, metavar="RUN_DIR")
     ap.add_argument("--run-id", default=None)
     args = ap.parse_args()
@@ -403,7 +418,9 @@ def main() -> None:
                      popsize=args.popsize, sigma0=args.sigma0, seed=args.seed,
                      depth=args.depth, workers=args.workers,
                      validate_every=args.validate_every,
-                     validate_games=args.validate_games)
+                     validate_games=args.validate_games,
+                     pool_handset=args.pool_handset,
+                     validate_handset=args.validate_handset)
     run_id = args.run_id or datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     run(cfg, TUNE_DIR / run_id)
 
