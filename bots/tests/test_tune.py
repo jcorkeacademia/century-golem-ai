@@ -12,6 +12,7 @@ import pytest
 from bots.features import CORE_FEATURES, Scales, Weights
 from bots.make_handset import ANCHOR, LAMBDA, VALUE
 from bots.tune import (
+    LAMBDA_MAX,
     LAMBDA_STD,
     PARAM_KEYS,
     PARAM_STDS,
@@ -118,8 +119,15 @@ def test_lambda_is_clamped(tmp_path):
                          tmp_path / "lo.json", name="lo", depth=2)
     hi = write_candidate([0.1] * len(PARAM_KEYS) + [9.0], scales,
                          tmp_path / "hi.json", name="hi", depth=2)
-    assert Weights.load(lo).lam == 0.0      # never help the leader
-    assert Weights.load(hi).lam == 1.5      # never care more about them than me
+    assert Weights.load(lo).lam == 0.0          # never help the leader
+    assert Weights.load(hi).lam == LAMBDA_MAX
+
+
+def test_lambda_ceiling_is_not_binding_at_the_tuned_value():
+    """Run 01 converged to 1.25 against a ceiling of 1.5 and was still
+    climbing, so the ceiling was shaping the answer rather than excluding an
+    absurd one. It must stay well clear of where the search settles."""
+    assert LAMBDA_MAX >= 2.5
 
 
 # --------------------------------------------------------------------------

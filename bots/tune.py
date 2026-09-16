@@ -88,7 +88,20 @@ PARAM_STDS: dict[str, float] = {
     "exhausted": 0.20,
     "dead_hand": 1.00,       # already -2; the plausible range is wide
 }
-LAMBDA_STD = 0.20
+# Lambda's step, widened along with its clamp (see LAMBDA_MAX). Run 01
+# walked it from 0.5 to 1.25 over 30 generations at a 0.20 step; if the real
+# optimum is above 2, a step that small would not reach it inside a run.
+LAMBDA_STD = 0.35
+
+# How much the bot may care about the leading opponent relative to itself.
+#
+# Originally 1.5, on the reasoning that valuing an opponent's position above
+# your own is absurd. Run 01 converged to 1.25 and was still climbing, which
+# means the bound may have been binding a real preference rather than
+# excluding a silly one — an invented constraint shaping the answer. Raised so
+# the search can express a preference above 1.5 if the games actually support
+# one. Zero remains the floor: negative lambda would mean helping the leader.
+LAMBDA_MAX = 3.0
 
 
 # --------------------------------------------------------------------------
@@ -122,10 +135,10 @@ def write_candidate(x: Sequence[float], scales: Scales, path: Path,
         features=list(CORE_FEATURES),
         w_early=w,
         w_late=dict(w),
-        # lambda is a share of the opponent term; negative would mean *helping*
-        # the leader, and above 1 would mean caring more about them than about
-        # yourself. Neither is a position worth searching.
-        lam=min(1.5, max(0.0, lam)),
+        # See LAMBDA_MAX. Negative would mean helping the leader, which is
+        # never a position worth spending samples on; the upper bound is
+        # deliberately loose so the search, not the author, decides.
+        lam=min(LAMBDA_MAX, max(0.0, lam)),
         params={"ttc_depth": depth, "alpha": 1.0, "beta": 1.0},
         meta={"source": "cma", "value_in_points": values, **(meta or {})},
     )
