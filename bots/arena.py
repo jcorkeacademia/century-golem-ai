@@ -65,8 +65,15 @@ _WEIGHTS_CACHE: dict[str, tuple[Weights, Scales]] = {}
 
 
 def parse_spec(spec: str) -> tuple[str, dict]:
-    """'greedy:build_until=3' -> ('greedy', {'build_until': 3})."""
-    head, _, tail = spec.partition(":")
+    """'greedy:build_until=3' -> ('greedy', {'build_until': 3}).
+
+    Splits on the LAST colon and only when the tail actually looks like
+    options, because a spec is often a Windows path: `C:\\...\\cand.json`
+    would otherwise parse as the bot named "C" with junk options.
+    """
+    head, sep, tail = spec.rpartition(":")
+    if not sep or "=" not in tail:
+        head, tail = spec, ""
     opts: dict[str, object] = {}
     for part in filter(None, tail.split(",")):
         k, _, v = part.partition("=")
@@ -103,6 +110,8 @@ def build_bot(spec: str, seed: int):
 def spec_label(spec: str) -> str:
     """A short display name, unique per spec position."""
     head, opts = parse_spec(spec)
+    if head.endswith(".json") or "/" in head or "\\" in head:
+        head = Path(head).stem          # a weights path prints as its name
     if not opts:
         return head
     return head + "[" + ",".join(f"{k}={v}" for k, v in opts.items()) + "]"

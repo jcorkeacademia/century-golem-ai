@@ -33,7 +33,14 @@ results/**
 !results/arena/**/summary.txt
 !results/arena/**/result.json
 !results/**/summary.json
-!results/**/best.json
+# Tuning: the per-generation records are the curve and are ~1 KB each, so they
+# are tracked. The candidate weight files (popsize per generation) and the
+# pickled CMA state are not.
+!results/tune/**/gen_*.json
+!results/tune/**/config.json
+!results/tune/**/best.json
+results/tune/**/candidates/
+results/tune/**/state.pkl
 
 # --- Editor / OS ---
 .claude/settings.local.json
