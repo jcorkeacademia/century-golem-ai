@@ -1,0 +1,69 @@
+{
+  "name": "run02_mean",
+  "features": [
+    "golem_points",
+    "token_points",
+    "cry_y",
+    "cry_g",
+    "cry_b",
+    "cry_m",
+    "best_target",
+    "token_race",
+    "throughput",
+    "playable_now",
+    "exhausted",
+    "dead_hand"
+  ],
+  "w_early": {
+    "golem_points": 1.0,
+    "token_points": 0.04479481700963659,
+    "cry_y": 0.036686959771458645,
+    "cry_g": 0.04306925294501737,
+    "cry_b": 0.04158256006031122,
+    "cry_m": 0.0341721504048331,
+    "best_target": 0.09269425564129234,
+    "token_race": 0.0055491896375480096,
+    "throughput": 0.03919089392178344,
+    "playable_now": 0.05944571876555788,
+    "exhausted": 0.033961461591537706,
+    "dead_hand": -0.0436407359897371
+  },
+  "w_late": {
+    "golem_points": 1.0,
+    "token_points": 0.04479481700963659,
+    "cry_y": 0.036686959771458645,
+    "cry_g": 0.04306925294501737,
+    "cry_b": 0.04158256006031122,
+    "cry_m": 0.0341721504048331,
+    "best_target": 0.09269425564129234,
+    "token_race": 0.0055491896375480096,
+    "throughput": 0.03919089392178344,
+    "playable_now": 0.05944571876555788,
+    "exhausted": 0.033961461591537706,
+    "dead_hand": -0.0436407359897371
+  },
+  "lambda": 0.8910237891267685,
+  "params": {
+    "ttc_depth": 2,
+    "alpha": 1.0,
+    "beta": 1.0
+  },
+  "meta": {
+    "source": "cma distribution centre at generation 24",
+    "value_in_points": {
+      "golem_points": 1.0,
+      "token_points": 0.462648305685977,
+      "cry_y": 0.3490081379026644,
+      "cry_g": 0.5651467266189982,
+      "cry_b": 0.7784370451743441,
+      "cry_m": 0.9178074714933226,
+      "best_target": 0.5986855010630843,
+      "token_race": 0.22526332966580734,
+      "throughput": 2.725882538571421,
+      "playable_now": 0.17678066533816153,
+      "exhausted": 0.08032639299392899,
+      "dead_hand": -2.756346123678777
+    },
+    "run": "run02"
+  }
+}

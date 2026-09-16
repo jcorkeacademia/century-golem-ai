@@ -1,0 +1,71 @@
+{
+  "name": "tuned_g000",
+  "features": [
+    "golem_points",
+    "token_points",
+    "cry_y",
+    "cry_g",
+    "cry_b",
+    "cry_m",
+    "best_target",
+    "token_race",
+    "throughput",
+    "playable_now",
+    "exhausted",
+    "dead_hand"
+  ],
+  "w_early": {
+    "golem_points": 1.0,
+    "token_points": 0.09308267195833156,
+    "cry_y": 0.04245990169997809,
+    "cry_g": 0.02826957420394492,
+    "cry_b": 0.032203981483210235,
+    "cry_m": 0.028859218385968475,
+    "best_target": 0.05997539207946876,
+    "token_race": 0.003464318289407843,
+    "throughput": 0.024381808486456248,
+    "playable_now": -0.01869893567705034,
+    "exhausted": -0.000966324662102694,
+    "dead_hand": -0.021942664876861147
+  },
+  "w_late": {
+    "golem_points": 1.0,
+    "token_points": 0.09308267195833156,
+    "cry_y": 0.04245990169997809,
+    "cry_g": 0.02826957420394492,
+    "cry_b": 0.032203981483210235,
+    "cry_m": 0.028859218385968475,
+    "best_target": 0.05997539207946876,
+    "token_race": 0.003464318289407843,
+    "throughput": 0.024381808486456248,
+    "playable_now": -0.01869893567705034,
+    "exhausted": -0.000966324662102694,
+    "dead_hand": -0.021942664876861147
+  },
+  "lambda": 0.20671726273678315,
+  "params": {
+    "ttc_depth": 2,
+    "alpha": 1.0,
+    "beta": 1.0
+  },
+  "meta": {
+    "source": "cma",
+    "value_in_points": {
+      "golem_points": 1.0,
+      "token_points": 0.9613732870251781,
+      "cry_y": 0.40392693535124025,
+      "cry_g": 0.37094809479672297,
+      "cry_b": 0.602867455786267,
+      "cry_m": 0.77511090002557,
+      "best_target": 0.38736378441294195,
+      "token_race": 0.14063024042533687,
+      "throughput": 1.6958517492524479,
+      "playable_now": -0.055607205342088906,
+      "exhausted": -0.0022855722613283475,
+      "dead_hand": -1.3858973251675226
+    },
+    "generation": 0,
+    "win_rate": 0.715,
+    "mean_margin": 17.295
+  }
+}

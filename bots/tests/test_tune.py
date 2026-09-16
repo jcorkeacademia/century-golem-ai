@@ -281,3 +281,22 @@ def test_a_tiny_run_produces_checkpoints_and_resumes(tmp_path):
     cfg2 = TuneConfig(**{**cfg.as_dict(), "generations": 3})
     run(cfg2, d, resume=True)
     assert (d / "gen_002.json").exists()
+
+
+def test_a_run_writes_both_the_mean_and_the_best_sample(tmp_path):
+    """The distribution centre is the estimate; the best sample is one draw.
+
+    Validating the sample instead of the centre made two equivalent runs look
+    23 points apart (79.0% against 55.6% vs handset_v1) when their means are
+    indistinguishable (78.2% against 75.2%, overlapping intervals).
+    """
+    from bots.tune import run
+    cfg = TuneConfig(generations=1, games=4, popsize=4, workers=2,
+                     validate_every=99, hof_every=99, depth=1)
+    d = tmp_path / "r"
+    run(cfg, d)
+    assert (d / "mean.json").exists(), "the estimate of the optimum must be written"
+    assert (d / "best.json").exists(), "the best sample is kept for comparison"
+    mean = json.loads((d / "mean.json").read_text())
+    best = json.loads((d / "best.json").read_text())
+    assert mean["w_early"] != best["w_early"], "mean and best should not be identical"

@@ -265,7 +265,17 @@ class TuneConfig:
 
 
 def validate(best_path: Path, cfg: TuneConfig, pool: mp.Pool, seed_base: int) -> dict:
-    """Fresh games against fixed opponents — a yardstick the tuner never saw."""
+    """Fresh games against fixed opponents — a yardstick the tuner never saw.
+
+    Point this at the distribution CENTRE, never at the best sample. The best
+    sample is the luckiest of `popsize` noisy draws and can sit far from the
+    mean: run 02's generation-10 best had cry_b 1.18 and cry_m 1.64 against
+    its own mean of 0.71 and 0.80. Validating samples made run 01 and run 02
+    look 23 points apart (79.0% against 55.6% vs handset_v1) when their means
+    are statistically indistinguishable (78.2% [75.5, 80.6] against 75.2%
+    [71.6, 78.5]). That very nearly got recorded as "tuning is not
+    reproducible".
+    """
     out = {}
     seeds = range(seed_base, seed_base + cfg.validate_games)
     for opponent in ("greedy", cfg.validate_handset):
@@ -340,12 +350,20 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
 
             best_i = min(range(len(fits)), key=lambda i: fits[i].loss)
             best_x = list(xs[best_i])
-            best_path = run_dir / "best.json"
-            write_candidate(best_x, scales, best_path, name=f"tuned_g{gen:03d}",
+            write_candidate(best_x, scales, run_dir / "best.json",
+                            name=f"tuned_g{gen:03d}",
                             depth=cfg.depth,
                             meta={"generation": gen,
                                   "win_rate": fits[best_i].win_rate,
                                   "mean_margin": fits[best_i].mean_margin})
+
+            # The estimate of the optimum, and the thing worth shipping and
+            # validating — see validate(). `best.json` is kept alongside it
+            # only for comparison.
+            mean_x = [float(v) for v in es.result.xfavorite]
+            mean_path = run_dir / "mean.json"
+            write_candidate(mean_x, scales, mean_path, name=f"mean_g{gen:03d}",
+                            depth=cfg.depth, meta={"generation": gen})
 
             if (gen + 1) % cfg.hof_every == 0:
                 hof_path = cand_dir / f"hof_g{gen:03d}.json"
@@ -372,7 +390,7 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
             }
 
             if (gen + 1) % cfg.validate_every == 0:
-                record["validation"] = validate(best_path, cfg, pool,
+                record["validation"] = validate(mean_path, cfg, pool,
                                                 seed_base=90_000_000 + gen * 10_000)
 
             (run_dir / f"gen_{gen:03d}.json").write_text(json.dumps(record, indent=2))
