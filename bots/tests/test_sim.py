@@ -396,3 +396,56 @@ def test_ttc_is_fast_on_real_positions():
             calls += 1
     per_ms = (time.perf_counter() - t0) / calls * 1000
     assert per_ms < 1.0, f"{per_ms:.4f} ms per TTC call, target < 1 ms"
+
+
+# --------------------------------------------------------------------------
+# Cache bound
+# --------------------------------------------------------------------------
+
+def test_cache_is_bounded():
+    """The memo table is module-level and outlives any one game.
+
+    A tuning worker lives for a whole run — ~2,500 games by generation 19 —
+    and without a cap each of 20 processes had committed 2.2 GB, 39.8 GB on a
+    15.7 GB machine. The box thrashed and generation time tripled before it
+    was noticed. An unbounded cache here is a slow-motion OOM, not a leak that
+    shows up in a test run.
+    """
+    assert sim.CACHE_LIMIT > 0
+    real_limit = sim.CACHE_LIMIT
+    sim.CACHE_LIMIT = 50
+    try:
+        sim.clear_cache()
+        rng = random.Random(0)
+        g = Game(["A", "B"], seed=1)
+        p = g.players[0]
+        for i in range(400):
+            p.caravan = [rng.randrange(0, 4) for _ in range(4)]
+            p.hand = [CREATE_2, UPGRADE_2][: 1 + i % 2]
+            cost = tuple((Crystal(j), rng.randrange(0, 3)) for j in range(4))
+            cost = tuple((c, n) for c, n in cost if n)
+            if not cost:
+                continue
+            ttc(p, PointCard(cost, 10, "x"), depth=2)
+            assert sim.cache_size() <= sim.CACHE_LIMIT, sim.cache_size()
+    finally:
+        sim.CACHE_LIMIT = real_limit
+        sim.clear_cache()
+
+
+def test_cache_still_returns_correct_answers_when_it_wraps():
+    """Clearing a full cache must never change an answer, only recompute it."""
+    real_limit = sim.CACHE_LIMIT
+    try:
+        p = make_player((0, 2, 0, 0), hand=[UPGRADE_2])
+        golem = PointCard(((B, 2),), 9, "2B")
+        sim.CACHE_LIMIT = 10_000
+        sim.clear_cache()
+        warm = ttc(p, golem)
+        sim.CACHE_LIMIT = 1          # every insert wipes the table
+        sim.clear_cache()
+        cold = ttc(p, golem)
+        assert warm == cold == 1.0
+    finally:
+        sim.CACHE_LIMIT = real_limit
+        sim.clear_cache()

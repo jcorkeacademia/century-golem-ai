@@ -265,6 +265,21 @@ def _trade_results(caravan: Caravan, cost: Caravan, gain: Caravan) -> list[Carav
 
 State = tuple[Caravan, tuple[int, ...], tuple[int, ...]]
 
+# The memo table, and a hard cap on it.
+#
+# THE CAP IS NOT OPTIONAL. This dict is module-level and lives as long as the
+# process. A one-off arena run is fine — each worker sees ~110 games — but a
+# tuning worker lives for the whole run and had handled ~2,500 games by
+# generation 19, at which point each of 20 processes had committed 2.2 GB, for
+# 39.8 GB on a 15.7 GB machine. The box thrashed and generation time tripled
+# from 186s to 511s before it was caught.
+#
+# Clear-when-full rather than LRU: evicting one entry at a time costs
+# bookkeeping on every insert, and the access pattern here is bursty by game
+# rather than smoothly recent, so a periodic wipe loses little. At this cap a
+# worker holds well under 200 MB.
+CACHE_LIMIT = 150_000
+
 _TTC_CACHE: dict[tuple, float] = {}
 
 
@@ -390,6 +405,8 @@ def ttc_state(caravan: Caravan, hand: tuple[int, ...], played: tuple[int, ...],
         rate = throughput_hint if throughput_hint > 0.5 else 0.5
         result = float(depth) + math.ceil(best_short / rate)
 
+    if len(_TTC_CACHE) >= CACHE_LIMIT:
+        _TTC_CACHE.clear()
     _TTC_CACHE[key] = result
     return result
 
