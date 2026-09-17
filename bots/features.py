@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Callable, Optional, Sequence
 
 from bots._engine import (
+    CARAVAN_LIMIT,
     Crystal,
     CrystalCard,
     Game,
@@ -52,14 +53,47 @@ class Ctx:
     the row the first time and nothing thereafter.
     """
 
-    __slots__ = ("game", "depth", "_ttc", "_tp", "_best_target")
+    __slots__ = ("game", "depth", "alpha", "beta",
+                 "_ttc", "_tp", "_best_target", "_opp_row_min")
 
-    def __init__(self, game: Game, depth: int = DEFAULT_TTC_DEPTH):
+    def __init__(self, game: Game, depth: int = DEFAULT_TTC_DEPTH,
+                 alpha: float = 1.0, beta: float = 1.0):
         self.game = game
         self.depth = depth
+        # Exponents for `shaped_target` (brief feature #29). At 1.0/1.0 it is
+        # exactly best_target; they exist so the shape of the points-versus-
+        # distance trade-off can be tuned rather than assumed.
+        self.alpha = alpha
+        self.beta = beta
         self._ttc: dict[int, list[Optional[float]]] = {}
         self._tp: dict[int, float] = {}
         self._best_target: dict[int, float] = {}
+        self._opp_row_min: dict[int, list[Optional[float]]] = {}
+
+    def best_opponent_ttc_row(self, me: int) -> list[Optional[float]]:
+        """Per slot, the *fastest* any opponent could claim it.
+
+        The expensive one: it runs a TTC search per opponent per slot. Cached
+        per (state, me) because every contested-* feature wants the same
+        numbers. Note the opponent family is on probation — dropping the
+        opponent term entirely cost nothing (API_NOTES §13), so these features
+        have to earn the cycles they spend.
+        """
+        got = self._opp_row_min.get(me)
+        if got is None:
+            n = len(self.game.point_row)
+            got = [None] * n
+            for pid in range(self.game.n):
+                if pid == me:
+                    continue
+                row = self.ttc_row(pid)
+                for s in range(n):
+                    if row[s] is None:
+                        continue
+                    if got[s] is None or row[s] < got[s]:
+                        got[s] = row[s]
+            self._opp_row_min[me] = got
+        return got
 
     def ttc_row(self, pid: int) -> list[Optional[float]]:
         """TTC for every point-row slot, from `pid`'s point of view."""
@@ -395,7 +429,9 @@ def evaluate(before: Game, after: Game, me: int, weights: Weights,
         return term, {"terminal": term}
 
     if ctx is None:
-        ctx = Ctx(after, weights.ttc_depth)
+        ctx = Ctx(after, weights.ttc_depth,
+                  alpha=float(weights.params.get("alpha", 1.0)),
+                  beta=float(weights.params.get("beta", 1.0)))
     w = weights.effective(phase_of(after))
     keys = weights.features
 
@@ -500,3 +536,320 @@ def explain(game: Game, me: int, weights: Weights, scales: Optional[Scales] = No
         if row.strip():
             lines.append(row)
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------
+# Step 7 candidates
+# --------------------------------------------------------------------------
+# Registered but NOT in CORE_FEATURES — each is admitted only if it wins its
+# ablation gate. Grouped by what they cost to compute, because the cheap
+# solitaire ones are screened first: Step 6 showed that ignoring opponents
+# entirely costs nothing (API_NOTES §13), which makes the opponent-modelling
+# family the least likely to pay for itself.
+
+# ---- engine shape: cheap, no TTC -----------------------------------------
+
+@feature("card_count", "engine", False, "Merchant cards owned.")
+def f_card_count(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    p = after.players[pid]
+    return float(len(p.hand) + len(p.played))
+
+
+@feature("upgrade_steps", "engine", False,
+         "Total upgrade steps across owned upgrade cards.")
+def f_upgrade_steps(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    p = after.players[pid]
+    return float(sum(c.steps for c in list(p.hand) + list(p.played)
+                     if isinstance(c, UpgradeCard)))
+
+
+@feature("feedable_trades", "engine", False,
+         "Profitable trades you can actually afford, weighted by repeats.")
+def f_feedable_trades(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    p = after.players[pid]
+    caravan = p.caravan
+    total = 0.0
+    for card in list(p.hand) + list(p.played):
+        if not isinstance(card, TradeCard):
+            continue
+        net = nominal_output(card)
+        if net <= 0:
+            continue
+        cost = sim._counts(card.cost)
+        times = -1
+        for i in range(4):
+            if cost[i]:
+                v = caravan[i] // cost[i]
+                if times < 0 or v < times:
+                    times = v
+        if times > 0:
+            total += net * min(times, 3)
+    return total
+
+
+@feature("color_coverage", "engine", False,
+         "How many of green/blue/magenta you can actually produce.")
+def f_color_coverage(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    p = after.players[pid]
+    owned = list(p.hand) + list(p.played)
+    produced = set()
+    best_upgrade = 0
+    for card in owned:
+        if isinstance(card, CrystalCard):
+            produced.update(c for c, n in card.gain if n)
+        elif isinstance(card, TradeCard):
+            produced.update(c for c, n in card.gain if n)
+        elif isinstance(card, UpgradeCard):
+            best_upgrade = max(best_upgrade, card.steps)
+    count = 0
+    for c in (Crystal.GREEN, Crystal.TURQUOISE, Crystal.MAGENTA):
+        # A colour counts if something gains it outright, or your biggest
+        # single upgrade card can climb that far in one play.
+        if c in produced or best_upgrade >= int(c):
+            count += 1
+    return float(count)
+
+
+@feature("free_space", "caravan", False, "Room left under the 10-crystal cap.")
+def f_free_space(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    return float(CARAVAN_LIMIT - after.players[pid].total_crystals())
+
+
+@feature("overflow_waste", "caravan", False,
+         "Yellow-equivalent the caravan cap threw away on this move.")
+def f_overflow_waste(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    # last_discard is per-action and belongs to whoever just acted, so it only
+    # means anything for the seat that moved.
+    if before.current != pid:
+        return 0.0
+    return float(ye_of(after.last_discard))
+
+
+@feature("golem_count", "score", True,
+         "Golems claimed, independent of their points.")
+def f_golem_count(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    return float(len(after.players[pid].point_cards))
+
+
+@feature("race_lead", "race", False,
+         "Your golem count minus the best opponent's.")
+def f_race_lead(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    mine = len(after.players[pid].point_cards)
+    best = max((len(p.point_cards) for i, p in enumerate(after.players) if i != pid),
+               default=0)
+    return float(mine - best)
+
+
+@feature("row_bounty", "row", False,
+         "Best merchant deal left on the row for whoever moves next.")
+def f_row_bounty(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    best = 0.0
+    for j, card in enumerate(after.merchant_row):
+        if card is None:
+            continue
+        sitting = after.row_crystals[j]
+        piled = ye_of([sitting.get(Crystal(i), 0) for i in range(4)])
+        v = nominal_output(card) + piled - j
+        if v > best:
+            best = v
+    return best
+
+
+# ---- target shaping: uses my own TTC, already cached ----------------------
+
+@feature("option_breadth", "targets", False,
+         "How many golems are within reach, not just the best one.")
+def f_option_breadth(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    row = ctx.ttc_row(pid)
+    total = 0.0
+    for slot, pc in enumerate(after.point_row):
+        if pc is None:
+            continue
+        d = 1.0 + row[slot]
+        total += pc.points / (d * d)
+    return total
+
+
+@feature("shaped_target", "targets", False,
+         "best_target with tunable exponents: points^alpha / (1 + TTC)^beta.")
+def f_shaped_target(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    # alpha/beta ride on the weights file; 1.0/1.0 reproduces best_target.
+    a, b = ctx.alpha, ctx.beta
+    row = ctx.ttc_row(pid)
+    best = 0.0
+    for slot, pc in enumerate(after.point_row):
+        if pc is None:
+            continue
+        v = (pc.points ** a) / ((1.0 + row[slot]) ** b)
+        if v > best:
+            best = v
+    return best
+
+
+@feature("clock_lead", "race", False,
+         "Score lead divided by how long the game has left to run.")
+def f_clock_lead(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    scores = [p.score() for p in after.players]
+    best_other = max(s for i, s in enumerate(scores) if i != pid)
+    lead = scores[pid] - best_other
+    turns = None
+    for i, p in enumerate(after.players):
+        row = ctx.ttc_row(i)
+        live = [t for t in row if t is not None]
+        pace = max(1.0, sum(live) / len(live)) if live else 1.0
+        est = max(0, after.win_target - len(p.point_cards)) * pace
+        turns = est if turns is None else min(turns, est)
+    return lead / (1.0 + (turns or 0.0))
+
+
+# ---- opponent modelling: each costs a TTC search per opponent -------------
+
+@feature("snipe_risk", "opponent", False,
+         "1 when an opponent can reach your best target no slower than you.")
+def f_snipe_risk(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    mine = ctx.ttc_row(pid)
+    theirs = ctx.best_opponent_ttc_row(pid)
+    best_slot, best_v = None, -1.0
+    for slot, pc in enumerate(after.point_row):
+        if pc is None:
+            continue
+        v = pc.points / (1.0 + mine[slot])
+        if v > best_v:
+            best_slot, best_v = slot, v
+    if best_slot is None or theirs[best_slot] is None:
+        return 0.0
+    return 1.0 if theirs[best_slot] <= mine[best_slot] else 0.0
+
+
+def _contest_factor(my_ttc: float, opp_ttc: Optional[float],
+                    me: int, game: Game) -> float:
+    """1.0 if you get there first, 0.5 on a tie, 0.2 if they beat you."""
+    if opp_ttc is None:
+        return 1.0
+    if my_ttc < opp_ttc:
+        return 1.0
+    if my_ttc > opp_ttc:
+        return 0.2
+    # Dead heat: whoever acts first this round takes it.
+    return 1.0 if me >= game.current else 0.5
+
+
+@feature("contested_target", "opponent", False,
+         "best_target discounted by whether an opponent gets there first.")
+def f_contested_target(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    mine = ctx.ttc_row(pid)
+    theirs = ctx.best_opponent_ttc_row(pid)
+    best = 0.0
+    for slot, pc in enumerate(after.point_row):
+        if pc is None:
+            continue
+        p = _contest_factor(mine[slot], theirs[slot], pid, after)
+        v = pc.points * p / (1.0 + mine[slot])
+        if v > best:
+            best = v
+    return best
+
+
+@feature("contested_tokens", "opponent", False,
+         "token_race counting only slots you would reach first.")
+def f_contested_tokens(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    mine = ctx.ttc_row(pid)
+    theirs = ctx.best_opponent_ttc_row(pid)
+    total = 0.0
+    for slot in (0, 1):
+        pile = after.point_tokens[slot]
+        if not pile or after.point_row[slot] is None:
+            continue
+        if theirs[slot] is not None and theirs[slot] < mine[slot]:
+            continue
+        total += int(pile[-1]) / (1.0 + mine[slot])
+    return total
+
+
+@feature("denial", "opponent", False,
+         "Points taken off the row that an opponent was about to claim.")
+def f_denial(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    if before.current != pid:
+        return 0.0
+    gone = [pc for pc in before.point_row
+            if pc is not None and pc not in after.point_row]
+    if not gone:
+        return 0.0
+    before_ctx = Ctx(before, ctx.depth)
+    theirs = before_ctx.best_opponent_ttc_row(pid)
+    total = 0.0
+    for slot, pc in enumerate(before.point_row):
+        if pc is None or pc not in gone:
+            continue
+        t = theirs[slot]
+        if t is not None and t <= 1.0:
+            total += pc.points
+    return total
+
+
+@feature("response_threat", "opponent", False,
+         "Once the end is triggered, what opponents still to act can still take.")
+def f_response_threat(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    if not after.end_triggered:
+        return 0.0
+    total = 0.0
+    for opp in range(after.current, after.n):
+        if opp == pid:
+            continue
+        row = ctx.ttc_row(opp)
+        best = 0.0
+        for slot, pc in enumerate(after.point_row):
+            if pc is None:
+                continue
+            if row[slot] == 0.0 and pc.points > best:
+                best = float(pc.points)
+        total += best
+    return total
+
+
+@feature("opp_fit_bounty", "opponent", False,
+         "How much the row would help the next player if they took from it.")
+def f_opp_fit_bounty(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
+    nxt = after.current
+    if nxt == pid or after.game_over:
+        return 0.0
+    them = after.players[nxt]
+    base = ctx.best_target(nxt)
+    played = sim.card_ids(them.played)
+    car = (them.caravan[0], them.caravan[1], them.caravan[2], them.caravan[3])
+    tp = ctx.throughput(nxt)
+    best = 0.0
+    for j, card in enumerate(after.merchant_row):
+        if card is None:
+            continue
+        # What their best target would be worth with this card in hand.
+        hand = sim.card_ids(list(them.hand) + [card])
+        improved = 0.0
+        for pc in after.point_row:
+            if pc is None:
+                continue
+            t = sim.ttc_state(car, hand, played, sim.cost_of(pc), ctx.depth, tp)
+            v = pc.points / (1.0 + t)
+            if v > improved:
+                improved = v
+        sitting = after.row_crystals[j]
+        piled = ye_of([sitting.get(Crystal(i), 0) for i in range(4)])
+        v = (improved - base) + piled - j
+        if v > best:
+            best = v
+    return best
+
+
+EXTENDED_FEATURES: tuple[str, ...] = tuple(k for k in FEATURES if k not in CORE_FEATURES)
+
+# Screening order: cheapest and most likely to pay first. The opponent family
+# is last on purpose — Step 6 measured that ignoring opponents entirely costs
+# nothing, so these are the least likely to earn their gate, and they are also
+# the most expensive to evaluate.
+SCREEN_ORDER: tuple[str, ...] = (
+    "card_count", "upgrade_steps", "feedable_trades", "color_coverage",
+    "free_space", "overflow_waste", "golem_count", "race_lead", "row_bounty",
+    "option_breadth", "shaped_target", "clock_lead",
+    "snipe_risk", "contested_target", "contested_tokens", "denial",
+    "response_threat", "opp_fit_bounty",
+)

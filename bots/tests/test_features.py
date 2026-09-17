@@ -87,8 +87,13 @@ def test_core_set_is_the_briefs_twelve():
 
 
 def test_symmetric_flags():
-    """Only features meaningful for an opponent join the -lambda term."""
-    sym = {k for k, s in FEATURES.items() if s.symmetric}
+    """Only features meaningful for an opponent join the -lambda term.
+
+    Scoped to the core twelve: Step 7 candidates may add their own symmetric
+    features (golem_count is one), and this test is about the core set's
+    shape, not a global count.
+    """
+    sym = {k for k in CORE_FEATURES if FEATURES[k].symmetric}
     assert sym == {"golem_points", "token_points", "best_target", "throughput"}
 
 

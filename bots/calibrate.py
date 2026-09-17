@@ -32,7 +32,8 @@ from datetime import datetime, timezone
 from bots._engine import Acquire, Claim, Game, PlayCrystal, PlayTrade, PlayUpgrade, Rest
 from bots import sim
 from bots.bots import GreedyBot
-from bots.features import CORE_FEATURES, Ctx, FEATURES, SCALES_PATH, DEFAULT_TTC_DEPTH
+from bots.features import (CORE_FEATURES, Ctx, FEATURES, SCALES_PATH,
+                           DEFAULT_TTC_DEPTH, Scales)
 from bots.sim import can_pay, cost_of, shortfall
 
 # What matters is not std on its own but the *normalised* magnitude: p95/std
@@ -109,7 +110,8 @@ class TempGreedyBot:
         return best
 
 
-def run(n_games: int, n_players: int, depth: int, seed: int, cap: int = 1200):
+def run(n_games: int, n_players: int, depth: int, seed: int, cap: int = 1200,
+        keys=None):
     samples: dict[str, list[float]] = defaultdict(list)
     lengths, finished = [], 0
     t0 = time.perf_counter()
@@ -129,7 +131,7 @@ def run(n_games: int, n_players: int, depth: int, seed: int, cap: int = 1200):
             # Record the resulting position from the acting seat's view.
             pid = before.current
             ctx = Ctx(g, depth)
-            for key in CORE_FEATURES:
+            for key in (keys or CORE_FEATURES):
                 samples[key].append(FEATURES[key].fn(before, g, pid, ctx))
         lengths.append(steps)
         finished += g.game_over
@@ -140,9 +142,9 @@ def run(n_games: int, n_players: int, depth: int, seed: int, cap: int = 1200):
     return samples, lengths, finished, elapsed
 
 
-def summarise(samples):
+def summarise(samples, keys=None):
     scales, diags, flagged = {}, {}, []
-    for key in CORE_FEATURES:
+    for key in (keys or CORE_FEATURES):
         xs = samples[key]
         std = statistics.pstdev(xs) if len(xs) > 1 else 0.0
         scale = max(std, 1e-6)
@@ -167,7 +169,7 @@ def summarise(samples):
     return scales, diags, flagged
 
 
-def correlations(samples) -> list[tuple[str, str, float]]:
+def correlations(samples, keys=None) -> list[tuple[str, str, float]]:
     """Pairwise correlation between features, strongest first.
 
     Two features that measure the same thing split the credit for it during
@@ -176,7 +178,7 @@ def correlations(samples) -> list[tuple[str, str, float]]:
     fine. `throughput`, `playable_now` and `exhausted` are all computed from
     the same owned cards, so they are the obvious suspects.
     """
-    keys = list(CORE_FEATURES)
+    keys = list(keys or CORE_FEATURES)
     out = []
     for i, a in enumerate(keys):
         for b in keys[i + 1:]:
@@ -194,6 +196,11 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--correlations", action="store_true",
                     help="also report pairwise feature correlations")
+    ap.add_argument("--features", default="core",
+                    choices=("core", "all", "new"),
+                    help="which features to calibrate")
+    ap.add_argument("--merge", action="store_true",
+                    help="keep existing scales and add only the missing ones")
     ap.add_argument("--games", type=int, default=200)
     ap.add_argument("--players", type=int, default=2)
     ap.add_argument("--depth", type=int, default=DEFAULT_TTC_DEPTH)
@@ -201,12 +208,36 @@ def main() -> None:
     ap.add_argument("--out", default=str(SCALES_PATH))
     args = ap.parse_args()
 
-    print(f"calibrating on {args.games} GreedyBot self-play games "
-          f"({args.players}p, ttc_depth={args.depth}) ...")
-    samples, lengths, finished, elapsed = run(args.games, args.players, args.depth, args.seed)
-    scales, diags, flagged = summarise(samples)
+    from bots.features import EXTENDED_FEATURES
+    existing = Scales.load()
+    if args.features == "core":
+        keys = list(CORE_FEATURES)
+    elif args.features == "new":
+        keys = [k for k in EXTENDED_FEATURES if k not in existing.values]
+    else:
+        keys = list(FEATURES)
+    if not keys:
+        raise SystemExit("nothing to calibrate")
 
-    n = len(samples[CORE_FEATURES[0]])
+    print(f"calibrating {len(keys)} feature(s) on {args.games} GreedyBot self-play "
+          f"games ({args.players}p, ttc_depth={args.depth}) ...")
+    samples, lengths, finished, elapsed = run(args.games, args.players, args.depth,
+                                              args.seed, keys=keys)
+    scales, diags, flagged = summarise(samples, keys)
+
+    if args.merge:
+        # MERGE, DO NOT REMEASURE. Re-running calibration on a feature that
+        # already has a scale would shift it by sampling noise alone, and every
+        # weight fitted against the old divisor would silently mean something
+        # slightly different. Adding a feature must not disturb the ones
+        # already tuned, so existing entries are kept verbatim.
+        kept = {k: v for k, v in existing.values.items() if k not in scales}
+        scales = {**kept, **scales}
+        diags = {**{k: v for k, v in existing.diagnostics.items() if k not in diags},
+                 **diags}
+        print(f"  merged: kept {len(kept)} existing scale(s) untouched")
+
+    n = len(samples[keys[0]])
     print(f"  {finished}/{args.games} games finished, "
           f"mean {statistics.fmean(lengths):.0f} actions, "
           f"{n:,} feature observations in {elapsed:.1f}s\n")
@@ -215,7 +246,7 @@ def main() -> None:
            f"{'zero%':>7}{'norm p95':>10}")
     print(hdr)
     print("  " + "-" * (len(hdr) - 2))
-    for key in CORE_FEATURES:
+    for key in keys:
         d = diags[key]
         mark = "  <--" if key in flagged else ""
         print(f"  {key:<14}{d['mean']:>8.2f}{d['std']:>8.2f}{d['p50']:>7.1f}"
@@ -242,7 +273,7 @@ def main() -> None:
               f"{NORM_P95_BAND}, so hand-set weights are directly comparable.")
 
     if args.correlations:
-        pairs = correlations(samples)
+        pairs = correlations(samples, keys)
         print("\n  Strongest feature correlations (|r| > 0.4):")
         strong = [p for p in pairs if p[2] == p[2] and abs(p[2]) > 0.4]
         if not strong:
