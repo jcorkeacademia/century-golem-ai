@@ -1,0 +1,45 @@
+{
+  "generation": 24,
+  "elapsed_s": 123.40731319999759,
+  "games": 2400,
+  "sigma": 0.4376713457312295,
+  "best_loss": -1.05495,
+  "best_win_rate": 0.83,
+  "best_mean_margin": 22.495,
+  "mean_loss": -0.8906166666666667,
+  "best_values": {
+    "golem_points": 1.0,
+    "token_points": 1.5682372822965263,
+    "cry_y": 0.24997737141654114,
+    "cry_g": 0.37734556850966594,
+    "cry_b": 0.3308371732756805,
+    "cry_m": 0.7599375489726103,
+    "best_target": 0.6509230038416524,
+    "token_race": 0.23850029693632926,
+    "throughput": 2.5880420613605892,
+    "playable_now": 0.054572543924350105,
+    "exhausted": 0.009638691769239871,
+    "dead_hand": -5.170069251024892
+  },
+  "best_lambda": -0.012875437845894417,
+  "mean_x": [
+    1.5323857327274055,
+    0.30409849204660333,
+    0.3473228611985903,
+    0.4360157566983873,
+    0.8573263612352151,
+    0.5916578845675855,
+    0.1582393355432573,
+    2.5029921271704043,
+    0.0730577850264348,
+    0.013896167293432526,
+    -5.256172015681781,
+    -0.010798950579303405
+  ],
+  "hof": [
+    "C:\\Users\\jcork\\century\\results\\tune\\run03\\candidates\\hof_g009.json",
+    "C:\\Users\\jcork\\century\\results\\tune\\run03\\candidates\\hof_g014.json",
+    "C:\\Users\\jcork\\century\\results\\tune\\run03\\candidates\\hof_g019.json",
+    "C:\\Users\\jcork\\century\\results\\tune\\run03\\candidates\\hof_g024.json"
+  ]
+}
