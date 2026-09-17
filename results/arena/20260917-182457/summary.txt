@@ -1,0 +1,11 @@
+tuned_split vs handset_v1   2p, 2000 games (1000 seeds x 2 rotations)
+  281.3s   7.1 games/s   mean length 86 actions   capped 0   unfinished 0
+
+  bot                 win rate            95% CI   score  margin  golems  pts/gol   ended
+  ---------------------------------------------------------------------------------------
+  tuned_split           81.8%    [80.0%, 83.4%]    76.0   +13.6    5.80     12.2   81.8%
+  handset_v1            18.2%    [16.6%, 20.0%]    62.4   -13.6    4.78     11.9   18.1%
+
+  win rate by seat (each bot plays every seat equally often):
+    tuned_split       seat 0: 83.3%   seat 1: 80.3%
+    handset_v1        seat 0: 19.7%   seat 1: 16.7%
