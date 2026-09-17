@@ -12,6 +12,7 @@ import pytest
 from bots.features import CORE_FEATURES, Scales, Weights
 from bots.make_handset import ANCHOR, LAMBDA, VALUE
 from bots.tune import (
+    FIXED_LAMBDA,
     LAMBDA_MAX,
     LAMBDA_STD,
     PARAM_KEYS,
@@ -25,7 +26,7 @@ from bots.tune import (
     param_stds,
     score_generation,
     write_candidate,
-    x0_from_handset,
+    x0_from,
     x_to_values,
 )
 
@@ -42,17 +43,40 @@ def test_anchor_is_excluded_from_the_search():
 
 
 def test_x0_is_the_handset_intent():
-    x0 = x0_from_handset()
-    assert len(x0) == len(PARAM_KEYS) + 1
-    assert x0[:-1] == [VALUE[k] for k in PARAM_KEYS]
-    assert x0[-1] == LAMBDA
+    x0 = x0_from()
+    assert len(x0) == len(PARAM_KEYS)
+    assert x0 == [VALUE[k] for k in PARAM_KEYS]
+
+
+def test_lambda_is_no_longer_searched():
+    """Three runs gave -0.01, 0.89 and 1.32 - no convergence - and removing
+    it at the averaged optimum cost nothing: 50.2% CI [47.1, 53.3]. Century
+    has no blocking, so racing beats watching."""
+    assert FIXED_LAMBDA == 0.0
+    assert len(x0_from()) == len(PARAM_KEYS)      # no lambda coordinate
+
+
+def test_phase_split_doubles_the_vector():
+    assert len(x0_from(split=True)) == 2 * len(PARAM_KEYS)
+    assert len(param_stds(split=True)) == 2 * len(PARAM_KEYS)
+
+
+def test_phase_split_starts_with_early_equal_to_late():
+    """6b must start where 6a ended, or the comparison measures the restart."""
+    early, late = x_to_values(x0_from(split=True))
+    assert early == late
+
+
+def test_x0_can_be_seeded_from_a_weights_file():
+    x = x0_from("tuned_v1")
+    assert len(x) == len(PARAM_KEYS)
+    assert x[PARAM_KEYS.index("throughput")] > 2.0      # the tuned value
 
 
 def test_every_parameter_has_a_step():
     assert set(PARAM_STDS) == set(PARAM_KEYS)
     stds = param_stds()
-    assert len(stds) == len(PARAM_KEYS) + 1
-    assert stds[-1] == LAMBDA_STD
+    assert len(stds) == len(PARAM_KEYS)
     assert all(s > 0 for s in stds)
 
 
@@ -74,19 +98,35 @@ def test_best_target_gets_a_tight_step():
 
 
 def test_x_to_values_pins_the_anchor():
-    values, lam = x_to_values([0.1] * len(PARAM_KEYS) + [0.4])
-    assert values[ANCHOR] == 1.0
-    assert lam == 0.4
-    assert set(values) == set(CORE_FEATURES)
+    early, late = x_to_values([0.1] * len(PARAM_KEYS))
+    assert early[ANCHOR] == 1.0 and late[ANCHOR] == 1.0
+    assert set(early) == set(CORE_FEATURES)
+
+
+def test_x_to_values_splits_early_and_late():
+    n = len(PARAM_KEYS)
+    early, late = x_to_values([0.1] * n + [0.9] * n)
+    assert early["cry_y"] == 0.1 and late["cry_y"] == 0.9
+    assert early[ANCHOR] == late[ANCHOR] == 1.0
 
 
 # --------------------------------------------------------------------------
 # Candidate files
 # --------------------------------------------------------------------------
 
+def test_split_candidate_writes_different_early_and_late_weights(tmp_path):
+    n = len(PARAM_KEYS)
+    p = write_candidate([0.1] * n + [0.9] * n, Scales.load(),
+                        tmp_path / "s.json", name="s", depth=2)
+    w = Weights.load(p)
+    assert w.w_early != w.w_late
+    assert w.effective(0.0) == w.w_early
+    assert w.effective(1.0) == w.w_late
+
+
 def test_write_candidate_round_trips(tmp_path):
     scales = Scales.load()
-    p = write_candidate(x0_from_handset(), scales, tmp_path / "c.json",
+    p = write_candidate(x0_from(), scales, tmp_path / "c.json",
                         name="c", depth=2)
     w = Weights.load(p)
     assert w.features == list(CORE_FEATURES)
@@ -97,7 +137,7 @@ def test_write_candidate_round_trips(tmp_path):
 def test_write_candidate_reproduces_the_handset_weights(tmp_path):
     """x0 is the handset intent, so its weights must match handset_v1's."""
     scales = Scales.load()
-    p = write_candidate(x0_from_handset(), scales, tmp_path / "c.json",
+    p = write_candidate(x0_from(), scales, tmp_path / "c.json",
                         name="c", depth=3)
     got = Weights.load(p)
     want = Weights.load("handset_v1")
@@ -107,7 +147,7 @@ def test_write_candidate_reproduces_the_handset_weights(tmp_path):
 
 def test_write_candidate_records_readable_intent(tmp_path):
     """The point of tuning in points-space: the output is legible."""
-    p = write_candidate(x0_from_handset(), Scales.load(), tmp_path / "c.json",
+    p = write_candidate(x0_from(), Scales.load(), tmp_path / "c.json",
                         name="c", depth=2)
     blob = json.loads(p.read_text())
     assert blob["meta"]["value_in_points"]["cry_m"] == VALUE["cry_m"]
@@ -115,10 +155,10 @@ def test_write_candidate_records_readable_intent(tmp_path):
 
 def test_lambda_is_clamped(tmp_path):
     scales = Scales.load()
-    lo = write_candidate([0.1] * len(PARAM_KEYS) + [-5.0], scales,
-                         tmp_path / "lo.json", name="lo", depth=2)
-    hi = write_candidate([0.1] * len(PARAM_KEYS) + [9.0], scales,
-                         tmp_path / "hi.json", name="hi", depth=2)
+    lo = write_candidate([0.1] * len(PARAM_KEYS), scales,
+                         tmp_path / "lo.json", name="lo", depth=2, lam=-5.0)
+    hi = write_candidate([0.1] * len(PARAM_KEYS), scales,
+                         tmp_path / "hi.json", name="hi", depth=2, lam=9.0)
     assert Weights.load(lo).lam == 0.0          # never help the leader
     assert Weights.load(hi).lam == LAMBDA_MAX
 
@@ -275,6 +315,7 @@ def test_a_tiny_run_produces_checkpoints_and_resumes(tmp_path):
 
     rec = json.loads((d / "gen_001.json").read_text())
     assert "best_values" in rec and rec["best_values"][ANCHOR] == 1.0
+    assert "best_values_late" in rec
     assert rec["generation"] == 1
 
     # resuming must continue rather than restart

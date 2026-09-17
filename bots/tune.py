@@ -50,14 +50,26 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 from bots.arena import _play_one, git_commit, wilson
-from bots.features import CORE_FEATURES, Scales, Weights
+from bots.features import CORE_FEATURES, WEIGHTS_DIR, Scales, Weights
 from bots.make_handset import ANCHOR, LAMBDA, VALUE
 
 TUNE_DIR = Path(__file__).resolve().parent.parent / "results" / "tune"
 
-# Every feature except the anchor, in a fixed order, plus lambda at the end.
+# Every feature except the anchor, in a fixed order.
 PARAM_KEYS: tuple[str, ...] = tuple(k for k in CORE_FEATURES if k != ANCHOR)
-N_PARAMS = len(PARAM_KEYS) + 1
+
+# Lambda is no longer searched. It never converged in three independent runs
+# (-0.01, 0.89, 1.32) and an ablation at the averaged optimum showed removing
+# it entirely is free: 50.2% CI [47.1, 53.3] against the baseline over 1000
+# games. That is a fact about Century rather than about the tuner - the game
+# has no blocking or direct interaction, so a bot loses nothing by ignoring
+# its opponent and racing. Fixing it at 0 also drops a dimension from the
+# search and skips the opponent's TTC during evaluation.
+#
+# It is kept as a constant rather than deleted so the opponent term can be
+# switched back on if a later feature (Step 7's contested_target or denial)
+# makes opponent modelling matter.
+FIXED_LAMBDA = 0.0
 
 # How the fitness opponents are sampled. RandomBot is a small share — it is
 # there to punish anything that forgets how to play at all, not to be beaten.
@@ -108,39 +120,62 @@ LAMBDA_MAX = 3.0
 # Parameter vector <-> weights file
 # --------------------------------------------------------------------------
 
-def x0_from_handset() -> list[float]:
-    return [VALUE[k] for k in PARAM_KEYS] + [LAMBDA]
+def base_values(source: Optional[str] = None) -> dict[str, float]:
+    """Starting point: the hand-set intent, or a weights file's own intent."""
+    if source is None:
+        return {k: VALUE[k] for k in PARAM_KEYS}
+    blob = json.loads(Path(source).read_text()) if Path(source).exists() else         json.loads((WEIGHTS_DIR / f"{source}.json").read_text())
+    got = blob["meta"]["value_in_points"]
+    return {k: float(got[k]) for k in PARAM_KEYS}
 
 
-def param_stds() -> list[float]:
+def x0_from(source: Optional[str] = None, split: bool = False) -> list[float]:
+    """Parameter vector. Phase-split doubles it: early values then late."""
+    base = base_values(source)
+    v = [base[k] for k in PARAM_KEYS]
+    return v + v if split else v
+
+
+def param_stds(split: bool = False) -> list[float]:
     """Initial search step per coordinate — see PARAM_STDS."""
-    return [PARAM_STDS[k] for k in PARAM_KEYS] + [LAMBDA_STD]
+    v = [PARAM_STDS[k] for k in PARAM_KEYS]
+    return v + v if split else v
 
 
-def x_to_values(x: Sequence[float]) -> tuple[dict[str, float], float]:
-    values = {ANCHOR: 1.0}
-    for k, v in zip(PARAM_KEYS, x):
-        values[k] = float(v)
-    return values, float(x[-1])
+def x_to_values(x: Sequence[float]) -> tuple[dict[str, float], dict[str, float]]:
+    """-> (early values, late values). Identical unless the run is split."""
+    n = len(PARAM_KEYS)
+    early = {ANCHOR: 1.0}
+    for k, v in zip(PARAM_KEYS, x[:n]):
+        early[k] = float(v)
+    if len(x) < 2 * n:
+        return early, dict(early)
+    late = {ANCHOR: 1.0}
+    for k, v in zip(PARAM_KEYS, x[n:2 * n]):
+        late[k] = float(v)
+    return early, late
 
 
 def write_candidate(x: Sequence[float], scales: Scales, path: Path,
-                    name: str, depth: int, meta: Optional[dict] = None) -> Path:
+                    name: str, depth: int, meta: Optional[dict] = None,
+                    lam: float = FIXED_LAMBDA) -> Path:
     """Materialise a parameter vector as a weights file a worker can load."""
-    values, lam = x_to_values(x)
+    early, late = x_to_values(x)
     anchor_scale = scales.get(ANCHOR)
-    w = {k: values[k] * scales.get(k) / anchor_scale for k in CORE_FEATURES}
+
+    def to_w(values):
+        return {k: values[k] * scales.get(k) / anchor_scale for k in CORE_FEATURES}
+
     blob = Weights(
         name=name,
         features=list(CORE_FEATURES),
-        w_early=w,
-        w_late=dict(w),
-        # See LAMBDA_MAX. Negative would mean helping the leader, which is
-        # never a position worth spending samples on; the upper bound is
-        # deliberately loose so the search, not the author, decides.
+        w_early=to_w(early),
+        w_late=to_w(late),
         lam=min(LAMBDA_MAX, max(0.0, lam)),
         params={"ttc_depth": depth, "alpha": 1.0, "beta": 1.0},
-        meta={"source": "cma", "value_in_points": values, **(meta or {})},
+        meta={"source": "cma", "value_in_points": early,
+              "value_in_points_late": late,
+              "phase_split": early != late, **(meta or {})},
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     blob.save(path)
@@ -255,6 +290,8 @@ class TuneConfig:
     # the slow path (12.2 games/s at depth 2 against 5.4 at depth 3) and gave
     # the benchmark a deeper search than the bots being scored. Measured: 527s
     # for generation 0, a 7.2-hour projection for 50 generations.
+    split: bool = False         # 6b: separate early-game and late-game weights
+    start_from: Optional[str] = None   # weights file to seed x0 from
     pool_handset: str = "depth2"
     # Validation is against the Step 4 artefact exactly as it ships, so the
     # number stays comparable to the 90.8% recorded in API_NOTES §11.
@@ -305,17 +342,17 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
         print(f"resuming {run_dir.name} at generation {start_gen}")
     else:
         es = cma.CMAEvolutionStrategy(
-            x0_from_handset(), cfg.sigma0,
+            x0_from(cfg.start_from, cfg.split), cfg.sigma0,
             {"popsize": cfg.popsize, "seed": cfg.seed, "verbose": -9,
              # A per-coordinate step, so sigma0 is a multiplier on sensible
              # per-feature ranges rather than one distance for all of them.
-             "CMA_stds": param_stds()})
+             "CMA_stds": param_stds(cfg.split)})
         start_gen, hof = 0, []
         (run_dir / "config.json").write_text(json.dumps({
             "config": cfg.as_dict(),
             "param_keys": list(PARAM_KEYS),
             "anchor": ANCHOR,
-            "x0": x0_from_handset(),
+            "x0": x0_from(cfg.start_from, cfg.split),
             "git_commit": git_commit(),
             "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }, indent=2))
@@ -373,7 +410,7 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
                 hof[:] = hof[-4:]        # keep the last four
 
             elapsed = time.perf_counter() - t0
-            values, lam = x_to_values(best_x)
+            early_v, late_v = x_to_values(best_x)
             record = {
                 "generation": gen,
                 "elapsed_s": elapsed,
@@ -383,8 +420,9 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
                 "best_win_rate": fits[best_i].win_rate,
                 "best_mean_margin": fits[best_i].mean_margin,
                 "mean_loss": statistics.fmean(f.loss for f in fits),
-                "best_values": values,
-                "best_lambda": lam,
+                "best_values": early_v,
+                "best_values_late": late_v,
+                "phase_split": cfg.split,
                 "mean_x": [float(v) for v in es.result.xfavorite],
                 "hof": list(hof),
             }
@@ -428,6 +466,10 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=18)
     ap.add_argument("--validate-every", type=int, default=10)
     ap.add_argument("--validate-games", type=int, default=500)
+    ap.add_argument("--split", action="store_true",
+                    help="6b: tune separate early-game and late-game weights")
+    ap.add_argument("--start-from", default=None,
+                    help="weights file to seed x0 from (default: hand-set)")
     ap.add_argument("--pool-handset", default="depth2",
                     help="handset opponent in the fitness pool; should match "
                          "the candidates' ttc_depth")
@@ -450,6 +492,7 @@ def main() -> None:
                      depth=args.depth, workers=args.workers,
                      validate_every=args.validate_every,
                      validate_games=args.validate_games,
+                     split=args.split, start_from=args.start_from,
                      pool_handset=args.pool_handset,
                      validate_handset=args.validate_handset)
     run_id = args.run_id or datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")

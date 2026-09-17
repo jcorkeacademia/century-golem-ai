@@ -1,0 +1,69 @@
+{
+  "name": "abl_lean",
+  "features": [
+    "golem_points",
+    "token_points",
+    "cry_y",
+    "cry_g",
+    "cry_b",
+    "cry_m",
+    "best_target",
+    "token_race",
+    "throughput",
+    "playable_now",
+    "exhausted",
+    "dead_hand"
+  ],
+  "w_early": {
+    "golem_points": 1.0,
+    "token_points": 0.09221877395771295,
+    "cry_y": 0.033964445915935504,
+    "cry_g": 0.03356895037522409,
+    "cry_b": 0.02978062268241736,
+    "cry_m": 0.027602855083891875,
+    "best_target": 0.10254000477446538,
+    "token_race": 0.005828689981244035,
+    "throughput": 0.04136417976333828,
+    "playable_now": 0.0,
+    "exhausted": 0.0,
+    "dead_hand": -0.04434832953321489
+  },
+  "w_late": {
+    "golem_points": 1.0,
+    "token_points": 0.09221877395771295,
+    "cry_y": 0.033964445915935504,
+    "cry_g": 0.03356895037522409,
+    "cry_b": 0.02978062268241736,
+    "cry_m": 0.027602855083891875,
+    "best_target": 0.10254000477446538,
+    "token_race": 0.005828689981244035,
+    "throughput": 0.04136417976333828,
+    "playable_now": 0.0,
+    "exhausted": 0.0,
+    "dead_hand": -0.04434832953321489
+  },
+  "lambda": 0.0,
+  "params": {
+    "ttc_depth": 2,
+    "alpha": 1.0,
+    "beta": 1.0
+  },
+  "meta": {
+    "source": "mean of run01/02/03 CMA centres",
+    "value_in_points": {
+      "golem_points": 1.0,
+      "token_points": 0.9524508050740694,
+      "cry_y": 0.3231084858996237,
+      "cry_g": 0.44048552327602564,
+      "cry_b": 0.5575015076207289,
+      "cry_m": 0.741367058567093,
+      "best_target": 0.6622763591195496,
+      "token_race": 0.23660934271926004,
+      "throughput": 2.8770432122381693,
+      "playable_now": 0.0,
+      "exhausted": 0.0,
+      "dead_hand": -2.8010376871107923
+    },
+    "ablation": "all three unstable near-zero features removed"
+  }
+}
