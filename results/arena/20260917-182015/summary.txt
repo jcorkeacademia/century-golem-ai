@@ -1,0 +1,11 @@
+tuned_cont vs tuned_v1   2p, 5000 games (2500 seeds x 2 rotations)
+  340.9s   14.7 games/s   mean length 83 actions   capped 0   unfinished 0
+
+  bot                 win rate            95% CI   score  margin  golems  pts/gol   ended
+  ---------------------------------------------------------------------------------------
+  tuned_cont            50.0%    [48.7%, 51.4%]    71.4    +1.7    5.23     12.4   48.3%
+  tuned_v1              50.0%    [48.6%, 51.3%]    69.7    -1.7    5.46     11.8   51.7%
+
+  win rate by seat (each bot plays every seat equally often):
+    tuned_cont        seat 0: 50.9%   seat 1: 49.2%
+    tuned_v1          seat 0: 50.8%   seat 1: 49.1%

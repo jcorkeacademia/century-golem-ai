@@ -1,0 +1,11 @@
+tuned_split vs tuned_cont   2p, 10000 games (5000 seeds x 2 rotations)
+  642.7s   15.6 games/s   mean length 83 actions   capped 0   unfinished 0
+
+  bot                 win rate            95% CI   score  margin  golems  pts/gol   ended
+  ---------------------------------------------------------------------------------------
+  tuned_split           54.7%    [53.7%, 55.7%]    71.1    +0.4    5.52     11.9   57.4%
+  tuned_cont            45.3%    [44.3%, 46.3%]    70.7    -0.4    5.14     12.5   42.6%
+
+  win rate by seat (each bot plays every seat equally often):
+    tuned_split       seat 0: 54.4%   seat 1: 55.1%
+    tuned_cont        seat 0: 44.9%   seat 1: 45.6%
