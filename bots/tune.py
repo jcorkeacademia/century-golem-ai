@@ -171,34 +171,36 @@ LAMBDA_MAX = 3.0
 # Parameter vector <-> weights file
 # --------------------------------------------------------------------------
 
-# Typical readings on the point row, used to undo the rescaling that alpha
-# and beta apply to `shaped_target`. Both are measured: mean points per golem
-# claimed is ~12.2 across arena runs, and median TTC is ~2 (API_NOTES §8.4).
+# Mean points on a claimed golem, ~12.2 across arena runs. Used to undo the
+# rescaling that alpha applies to `shaped_target`.
 REF_POINTS = 12.2
-REF_TTC = 2.0
 
 
 def shaped_seed_factor(alpha: float, beta: float) -> float:
-    """How much to shrink a seeded `shaped_target` value for alpha/beta.
+    """How much to shrink a seeded `shaped_target` value for alpha.
 
-    THIS IS NOT COSMETIC. `shaped_target` is points^alpha / (1+TTC)^beta, and
-    its scale was calibrated at alpha = beta = 1. Changing either exponent
-    changes the feature's magnitude, so the calibrated divisor no longer
-    normalises it and the seeded weight means something different.
+    `shaped_target` is points^alpha / (1+TTC)^beta, and its scale was
+    calibrated at alpha = beta = 1. Raising alpha inflates the feature at
+    *every* distance, so the calibrated divisor stops normalising it and the
+    seeded weight silently means something larger.
 
-    Measured: bigcard (alpha 1.6) inflates a typical golem ~4.4x, which starts
-    the search deep in the regime where the points-over-distance term
-    outprices actual points and the bot hoards. It scored 17-23% against a
-    pool the balanced bot beats ~80% of the time, with sigma still 0.93 at
-    generation 5 — not converging, just flailing. Rush (beta 2.5) has the
-    mirror problem, shrinking values ~5x; milder, and it recovered, but it
-    wasted generations climbing back.
+    Measured: bigcard at alpha 1.6 reads ~4.4x too big, which starts the
+    search deep in the regime where the points-over-distance term outprices
+    the points it promises and the bot hoards. It scored 17-23% against a pool
+    the balanced bot beats ~80% of the time, sigma still 0.93 at generation 5
+    — flailing, not converging.
 
-    CMA could eventually absorb this into the weight, but starting a
-    constrained search from a knowingly wrong point wastes most of its budget
-    and makes the archetypes incomparable.
+    BETA IS DELIBERATELY NOT CORRECTED, and correcting it was a mistake worth
+    recording. Beta only bites when TTC > 0: at TTC = 0 the divisor is
+    (1+0)^beta = 1 whatever beta is. So while a *typical* reading does shrink
+    with high beta, the reading that governs the hoarding failure — a golem
+    claimable right now — is unchanged. A first version of this function
+    multiplied rush's seed by 5.2 to compensate for the typical case, which
+    inflated the promise term exactly where it is dangerous: rush went from
+    88.5% at generation 1 to 9.0% at generation 0. The average is the wrong
+    statistic when the failure mode lives at one end of the distribution.
     """
-    return (REF_POINTS ** (1.0 - alpha)) * ((1.0 + REF_TTC) ** (beta - 1.0))
+    return REF_POINTS ** (1.0 - alpha)
 
 
 def base_values(source: Optional[str] = None,

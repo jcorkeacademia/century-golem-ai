@@ -392,10 +392,18 @@ def test_shaped_seed_factor_shrinks_for_high_alpha():
     assert shaped_seed_factor(1.6, 1.0) < 0.3
 
 
-def test_shaped_seed_factor_grows_for_high_beta():
-    """beta > 1 shrinks points/(1+TTC)^beta, so the seeded value must go up."""
+def test_shaped_seed_factor_ignores_beta():
+    """Beta must NOT be corrected for, and this is the expensive lesson.
+
+    Beta only bites at TTC > 0; at TTC = 0 the divisor is 1 whatever beta is.
+    The reading that governs the hoarding failure is a golem claimable right
+    now, which beta leaves untouched. A first version compensated for the
+    *typical* reading by multiplying rush's seed 5.2x, and rush went from
+    88.5% at generation 1 to 9.0% at generation 0.
+    """
     from bots.tune import shaped_seed_factor
-    assert shaped_seed_factor(1.0, 2.5) > 3.0
+    assert shaped_seed_factor(1.0, 2.5) == pytest.approx(1.0)
+    assert shaped_seed_factor(1.0, 0.4) == pytest.approx(1.0)
 
 
 def test_archetype_seeds_are_corrected():
@@ -406,4 +414,7 @@ def test_archetype_seeds_are_corrected():
         x = x0_from("tuned_split", keys=keys, alpha=a["alpha"], beta=a["beta"])
         seeded[name] = x[keys.index("shaped_target")]
     # each archetype starts from a different, deliberately corrected value
-    assert seeded["bigcard"] < seeded["balanced"] < seeded["rush"]
+    # bigcard is scaled down for alpha; rush is untouched because beta does
+    # not change the value of a golem you can claim right now.
+    assert seeded["bigcard"] < seeded["balanced"]
+    assert seeded["rush"] == pytest.approx(seeded["balanced"])
