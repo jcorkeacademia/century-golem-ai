@@ -269,22 +269,83 @@ class WeightedBot:
 
     def __init__(self, weights: Weights, scales: Optional[Scales] = None,
                  rng: Optional[random.Random] = None, seed: int = 0,
-                 samples: int = 1, lookahead: int = 0, name: Optional[str] = None):
+                 samples: int = 1, lookahead: int = 0, top_k: int = 4,
+                 reply: str = "greedy", name: Optional[str] = None):
         self.weights = weights
         self.scales = scales if scales is not None else Scales.load()
         self.rng = rng if rng is not None else random.Random(seed)
         self.samples = samples
-        self.lookahead = lookahead          # Step 8; 0 for now
+        self.lookahead = lookahead
+        self.top_k = top_k
+        self.reply = reply
         self.name = name or weights.name
+        self._reply_bot: Optional[object] = None
 
     def choose(self, game: Game) -> Optional[Action]:
         scored = self.score_all(game)
         if not scored:
             return None
+        if self.lookahead > 0:
+            scored = self._rescore_after_reply(game, scored)
         best = scored[0][0]
         # Collect everything within a hair of the best, then pick one at random.
         tied = [a for v, a in scored if v >= best - 1e-9]
         return tied[0] if len(tied) == 1 else self.rng.choice(tied)
+
+    # ---- one-ply opponent lookahead (Step 8) ---------------------------
+    def _replier(self):
+        """The policy used to guess the opponent's answer.
+
+        `greedy` is the default because it is roughly free — a WeightedBot
+        reply costs a full score_all of its own, multiplying the whole
+        decision by the branching factor.
+        """
+        if self._reply_bot is None:
+            if self.reply == "greedy":
+                self._reply_bot = GreedyBot(rng=self.rng, name="reply")
+            else:
+                self._reply_bot = WeightedBot(self.weights, self.scales,
+                                              rng=self.rng, samples=1,
+                                              lookahead=0, name="reply")
+        return self._reply_bot
+
+    def _rescore_after_reply(self, game: Game, scored) -> list[tuple[float, Action]]:
+        """Take the best few moves, let the opponent answer each, re-score.
+
+        WHAT THIS CAN AND CANNOT BUY
+
+        With lambda at 0 (Step 6 measured the opponent term as worthless) V
+        ignores the opponent's *position* entirely. So looking ahead cannot
+        help by noticing they are doing well — it can only help through what
+        their move does to the shared board: the golem they take off the row,
+        the merchant card they remove, the crystals they leave sitting on it.
+        Those change my own best_target and token_race, which V does read.
+
+        That is a narrow channel, and it is the honest prediction for this
+        step: if opponent modelling has already failed twice by measurement,
+        one ply of it should not suddenly pay.
+        """
+        me = game.current
+        out = []
+        for v, action in scored[:max(1, self.top_k)]:
+            clone = game.clone()
+            if isinstance(action, (Acquire, Claim)):
+                clone.shuffle_hidden(self.rng)
+            clone.apply_action(action, validate=False)
+
+            if not clone.game_over and clone.current != me:
+                reply = self._replier().choose(clone)
+                if reply is not None:
+                    if isinstance(reply, (Acquire, Claim)):
+                        clone.shuffle_hidden(self.rng)
+                    clone.apply_action(reply, validate=False)
+
+            v2, _ = evaluate(game, clone, me, self.weights, self.scales)
+            out.append((v2, action))
+        out.sort(key=lambda t: -t[0])
+        # Anything outside the top K keeps its 1-ply score and stays below.
+        rest = [(v - 1e6, a) for v, a in scored[max(1, self.top_k):]]
+        return out + rest
 
     def score_all(self, game: Game) -> list[tuple[float, Action]]:
         """(V, action) for every legal move, best first."""

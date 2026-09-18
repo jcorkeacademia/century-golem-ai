@@ -325,3 +325,100 @@ def test_handset_beats_greedy(handset):
                     lambda s: GreedyBot(seed=s),
                     range(8), a_name="handset", b_name="greedy")
     assert res.a_rate > 0.6, res.summary()
+
+
+# --------------------------------------------------------------------------
+# Step 8: one-ply opponent lookahead
+# --------------------------------------------------------------------------
+
+def test_lookahead_zero_is_the_plain_one_ply_bot(handset):
+    w, sc = handset
+    g = Game(["A", "B"], seed=8)
+    a = WeightedBot(w, sc, seed=1, lookahead=0).choose(g)
+    b = WeightedBot(w, sc, seed=1, lookahead=0).choose(g)
+    assert a == b
+
+
+def test_lookahead_still_returns_a_legal_move(handset):
+    w, sc = handset
+    rng = random.Random(2)
+    g = Game(["A", "B"], seed=2)
+    bot = WeightedBot(w, sc, seed=1, lookahead=1)
+    for _ in range(25):
+        if g.game_over:
+            break
+        legal = g.legal_actions()
+        a = bot.choose(g)
+        assert a in legal, a
+        g.apply_action(a)
+
+
+def test_lookahead_does_not_mutate_the_game(handset):
+    w, sc = handset
+    g = Game(["A", "B"], seed=5)
+    before = (list(g.players[0].caravan), list(g.players[1].caravan),
+              len(g.merchant_deck), len(g.point_deck),
+              [c.name if c else None for c in g.point_row])
+    WeightedBot(w, sc, seed=1, lookahead=1).choose(g)
+    after = (list(g.players[0].caravan), list(g.players[1].caravan),
+             len(g.merchant_deck), len(g.point_deck),
+             [c.name if c else None for c in g.point_row])
+    assert before == after
+
+
+def test_lookahead_only_reconsiders_the_top_k(handset):
+    """Everything outside the top K keeps its 1-ply rank and stays below, so
+    the lookahead can reorder the shortlist but never promote a move it did
+    not score."""
+    w, sc = handset
+    g = Game(["A", "B"], seed=6)
+    flat = WeightedBot(w, sc, seed=1, lookahead=0)
+    deep = WeightedBot(w, sc, seed=1, lookahead=1, top_k=3)
+    shortlist = {a for _, a in flat.score_all(g)[:3]}
+    assert deep.choose(g) in shortlist
+
+
+def test_lookahead_accepts_both_reply_policies(handset):
+    w, sc = handset
+    g = Game(["A", "B"], seed=4)
+    for reply in ("greedy", "weighted"):
+        bot = WeightedBot(w, sc, seed=1, lookahead=1, reply=reply)
+        assert bot.choose(g) in g.legal_actions()
+
+
+def test_lookahead_is_reproducible(handset):
+    w, sc = handset
+
+    def run():
+        g = Game(["A", "B"], seed=9)
+        bot = WeightedBot(w, sc, seed=3, lookahead=1)
+        out = []
+        for _ in range(10):
+            a = bot.choose(g)
+            if a is None or g.game_over:
+                break
+            out.append(repr(a))
+            g.apply_action(a)
+        return out
+    assert run() == run()
+
+
+def test_lookahead_survives_a_game_ending_move(handset):
+    """If my move ends the game there is no reply to simulate."""
+    w, sc = handset
+    g = Game(["A", "B"], seed=1)
+    g.point_row = [PointCard(((G, 2),), 20, "2G=20")] + [None] * 4
+    g.players[0].caravan = [0, 2, 0, 0]
+    g.players[0].point_cards = [PointCard(((Y, 1),), 1, "x")] * (g.win_target - 1)
+    g._end_triggered = False
+    bot = WeightedBot(w, sc, seed=1, lookahead=1)
+    assert bot.choose(g) in g.legal_actions()
+
+
+def test_lookahead_is_reachable_through_an_arena_spec():
+    """Step 8 has to be measurable, which means specs must carry it."""
+    from bots.arena import build_bot, parse_spec
+    head, opts = parse_spec("tuned_split:lookahead=1")
+    assert opts == {"lookahead": 1}
+    bot = build_bot("tuned_split:lookahead=1,top_k=3", 0)
+    assert bot.lookahead == 1 and bot.top_k == 3
