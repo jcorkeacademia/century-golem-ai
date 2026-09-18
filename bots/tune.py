@@ -171,13 +171,45 @@ LAMBDA_MAX = 3.0
 # Parameter vector <-> weights file
 # --------------------------------------------------------------------------
 
+# Typical readings on the point row, used to undo the rescaling that alpha
+# and beta apply to `shaped_target`. Both are measured: mean points per golem
+# claimed is ~12.2 across arena runs, and median TTC is ~2 (API_NOTES §8.4).
+REF_POINTS = 12.2
+REF_TTC = 2.0
+
+
+def shaped_seed_factor(alpha: float, beta: float) -> float:
+    """How much to shrink a seeded `shaped_target` value for alpha/beta.
+
+    THIS IS NOT COSMETIC. `shaped_target` is points^alpha / (1+TTC)^beta, and
+    its scale was calibrated at alpha = beta = 1. Changing either exponent
+    changes the feature's magnitude, so the calibrated divisor no longer
+    normalises it and the seeded weight means something different.
+
+    Measured: bigcard (alpha 1.6) inflates a typical golem ~4.4x, which starts
+    the search deep in the regime where the points-over-distance term
+    outprices actual points and the bot hoards. It scored 17-23% against a
+    pool the balanced bot beats ~80% of the time, with sigma still 0.93 at
+    generation 5 — not converging, just flailing. Rush (beta 2.5) has the
+    mirror problem, shrinking values ~5x; milder, and it recovered, but it
+    wasted generations climbing back.
+
+    CMA could eventually absorb this into the weight, but starting a
+    constrained search from a knowingly wrong point wastes most of its budget
+    and makes the archetypes incomparable.
+    """
+    return (REF_POINTS ** (1.0 - alpha)) * ((1.0 + REF_TTC) ** (beta - 1.0))
+
+
 def base_values(source: Optional[str] = None,
-                keys: Sequence[str] = PARAM_KEYS) -> dict[str, float]:
+                keys: Sequence[str] = PARAM_KEYS,
+                alpha: float = 1.0, beta: float = 1.0) -> dict[str, float]:
     """Starting point: the hand-set intent, or a weights file's own intent.
 
     A key the source does not carry falls back to the hand-set value, which is
     what lets an archetype seed `shaped_target` from `best_target`'s tuned
-    value — they are the same quantity.
+    value — they are the same quantity at alpha = beta = 1, and corrected by
+    `shaped_seed_factor` when they are not.
     """
     fallback = {**VALUE, "shaped_target": VALUE["best_target"], "golem_count": 0.3}
     if source is None:
@@ -193,13 +225,16 @@ def base_values(source: Optional[str] = None,
             out[k] = float(got["best_target"])
         else:
             out[k] = fallback[k]
+    if "shaped_target" in out and (alpha != 1.0 or beta != 1.0):
+        out["shaped_target"] *= shaped_seed_factor(alpha, beta)
     return out
 
 
 def x0_from(source: Optional[str] = None, split: bool = False,
-            keys: Sequence[str] = PARAM_KEYS) -> list[float]:
+            keys: Sequence[str] = PARAM_KEYS,
+            alpha: float = 1.0, beta: float = 1.0) -> list[float]:
     """Parameter vector. Phase-split doubles it: early values then late."""
-    base = base_values(source, keys)
+    base = base_values(source, keys, alpha, beta)
     v = [base[k] for k in keys]
     return v + v if split else v
 
@@ -435,7 +470,8 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
     else:
         keys = param_keys(cfg.features, cfg.fixed)
         es = cma.CMAEvolutionStrategy(
-            x0_from(cfg.start_from, cfg.split, keys), cfg.sigma0,
+            x0_from(cfg.start_from, cfg.split, keys, cfg.alpha, cfg.beta),
+            cfg.sigma0,
             {"popsize": cfg.popsize, "seed": cfg.seed, "verbose": -9,
              # A per-coordinate step, so sigma0 is a multiplier on sensible
              # per-feature ranges rather than one distance for all of them.
@@ -445,7 +481,7 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
             "config": cfg.as_dict(),
             "param_keys": list(PARAM_KEYS),
             "anchor": ANCHOR,
-            "x0": x0_from(cfg.start_from, cfg.split, keys),
+            "x0": x0_from(cfg.start_from, cfg.split, keys, cfg.alpha, cfg.beta),
             "param_keys_used": list(keys),
             "git_commit": git_commit(),
             "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),

@@ -372,3 +372,38 @@ def test_a_run_writes_both_the_mean_and_the_best_sample(tmp_path):
     mean = json.loads((d / "mean.json").read_text())
     best = json.loads((d / "best.json").read_text())
     assert mean["w_early"] != best["w_early"], "mean and best should not be identical"
+
+
+def test_shaped_seed_factor_is_one_at_unit_exponents():
+    from bots.tune import shaped_seed_factor
+    assert shaped_seed_factor(1.0, 1.0) == pytest.approx(1.0)
+
+
+def test_shaped_seed_factor_shrinks_for_high_alpha():
+    """alpha > 1 inflates points^alpha, so the seeded value must come down.
+
+    Measured: bigcard at alpha 1.6 without this correction scored 17-23%
+    against a pool the balanced bot beats ~80% of the time, with sigma still
+    at 0.93 by generation 5. Raising a typical 12-point golem to the 1.6th
+    power makes the feature read ~4.4x larger, which starts the search in the
+    regime where the promise term outprices the points it promises.
+    """
+    from bots.tune import shaped_seed_factor
+    assert shaped_seed_factor(1.6, 1.0) < 0.3
+
+
+def test_shaped_seed_factor_grows_for_high_beta():
+    """beta > 1 shrinks points/(1+TTC)^beta, so the seeded value must go up."""
+    from bots.tune import shaped_seed_factor
+    assert shaped_seed_factor(1.0, 2.5) > 3.0
+
+
+def test_archetype_seeds_are_corrected():
+    from bots.tune import (ARCHETYPES, ARCHETYPE_FEATURES, param_keys, x0_from)
+    seeded = {}
+    for name, a in ARCHETYPES.items():
+        keys = param_keys(ARCHETYPE_FEATURES, a["fixed"])
+        x = x0_from("tuned_split", keys=keys, alpha=a["alpha"], beta=a["beta"])
+        seeded[name] = x[keys.index("shaped_target")]
+    # each archetype starts from a different, deliberately corrected value
+    assert seeded["bigcard"] < seeded["balanced"] < seeded["rush"]
