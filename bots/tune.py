@@ -55,8 +55,54 @@ from bots.make_handset import ANCHOR, LAMBDA, VALUE
 
 TUNE_DIR = Path(__file__).resolve().parent.parent / "results" / "tune"
 
+# --------------------------------------------------------------------------
+# Step 9 archetypes
+# --------------------------------------------------------------------------
+# Three constrained bots, tuned separately, to find out whether Century has
+# more than one viable way to play.
+#
+# `shaped_target` REPLACES `best_target` rather than joining it. They are the
+# same quantity — shaped_target at alpha=beta=1 is numerically identical, and
+# a test pins that — so swapping is lossless, while *adding* it was measured
+# at 23.4% in the Step 7 screen because two copies of the points-over-distance
+# term double the "promise" side of V and the bot stops claiming.
+#
+# This is the second chance the brief allows: Step 7 says keep a feature if it
+# improves the win rate "or it enables an archetype in Step 9". shaped_target
+# and golem_count both failed the win-rate test and are admitted here only as
+# archetype machinery.
+#
+#   Rush      beta >= 2 punishes distance hard, so near golems dominate, and
+#             golem_count is pinned high: take many cheap ones, end fast.
+#   Big-card  alpha >= 1.5 rewards raw points superlinearly and golem_count is
+#             pinned at 0: wait for the expensive golems, ignore the count.
+#   Balanced  unconstrained, alpha = beta = 1 — i.e. the Step 6 bot.
+ARCHETYPE_FEATURES: tuple[str, ...] = tuple(
+    "shaped_target" if k == "best_target" else k for k in CORE_FEATURES
+) + ("golem_count",)
+
+ARCHETYPES: dict[str, dict] = {
+    "rush": {"alpha": 1.0, "beta": 2.5, "fixed": {"golem_count": 1.5}},
+    "bigcard": {"alpha": 1.6, "beta": 1.0, "fixed": {"golem_count": 0.0}},
+    "balanced": {"alpha": 1.0, "beta": 1.0, "fixed": {}},
+}
+
 # Every feature except the anchor, in a fixed order.
 PARAM_KEYS: tuple[str, ...] = tuple(k for k in CORE_FEATURES if k != ANCHOR)
+
+
+def param_keys(features: Sequence[str] = CORE_FEATURES,
+               fixed: Optional[dict] = None) -> tuple[str, ...]:
+    """The coordinates CMA actually searches.
+
+    Step 9 needs two departures from the core twelve: a different feature set
+    (archetypes swap `best_target` for `shaped_target`, which is the same
+    quantity with tunable exponents) and pinned parameters (an archetype is
+    *defined* by holding one weight at a constraint while the rest adapt
+    around it).
+    """
+    fixed = fixed or {}
+    return tuple(k for k in features if k != ANCHOR and k not in fixed)
 
 # Lambda is no longer searched. It never converged in three independent runs
 # (-0.01, 0.89, 1.32) and an ablation at the averaged optimum showed removing
@@ -99,6 +145,11 @@ PARAM_STDS: dict[str, float] = {
     "playable_now": 0.15,
     "exhausted": 0.20,
     "dead_hand": 1.00,       # already -2; the plausible range is wide
+    # Step 9 only. shaped_target replaces best_target in an archetype, so it
+    # inherits its deliberately tight step; golem_count is a count like the
+    # crystals and gets a comparable one.
+    "shaped_target": 0.15,
+    "golem_count": 0.30,
 }
 # Lambda's step, widened along with its clamp (see LAMBDA_MAX). Run 01
 # walked it from 0.5 to 1.25 over 30 generations at a 0.20 step; if the real
@@ -120,62 +171,94 @@ LAMBDA_MAX = 3.0
 # Parameter vector <-> weights file
 # --------------------------------------------------------------------------
 
-def base_values(source: Optional[str] = None) -> dict[str, float]:
-    """Starting point: the hand-set intent, or a weights file's own intent."""
+def base_values(source: Optional[str] = None,
+                keys: Sequence[str] = PARAM_KEYS) -> dict[str, float]:
+    """Starting point: the hand-set intent, or a weights file's own intent.
+
+    A key the source does not carry falls back to the hand-set value, which is
+    what lets an archetype seed `shaped_target` from `best_target`'s tuned
+    value — they are the same quantity.
+    """
+    fallback = {**VALUE, "shaped_target": VALUE["best_target"], "golem_count": 0.3}
     if source is None:
-        return {k: VALUE[k] for k in PARAM_KEYS}
-    blob = json.loads(Path(source).read_text()) if Path(source).exists() else         json.loads((WEIGHTS_DIR / f"{source}.json").read_text())
+        return {k: fallback[k] for k in keys}
+    path = Path(source)
+    blob = json.loads(path.read_text()) if path.exists() else         json.loads((WEIGHTS_DIR / f"{source}.json").read_text())
     got = blob["meta"]["value_in_points"]
-    return {k: float(got[k]) for k in PARAM_KEYS}
+    out = {}
+    for k in keys:
+        if k in got:
+            out[k] = float(got[k])
+        elif k == "shaped_target" and "best_target" in got:
+            out[k] = float(got["best_target"])
+        else:
+            out[k] = fallback[k]
+    return out
 
 
-def x0_from(source: Optional[str] = None, split: bool = False) -> list[float]:
+def x0_from(source: Optional[str] = None, split: bool = False,
+            keys: Sequence[str] = PARAM_KEYS) -> list[float]:
     """Parameter vector. Phase-split doubles it: early values then late."""
-    base = base_values(source)
-    v = [base[k] for k in PARAM_KEYS]
+    base = base_values(source, keys)
+    v = [base[k] for k in keys]
     return v + v if split else v
 
 
-def param_stds(split: bool = False) -> list[float]:
+def param_stds(split: bool = False,
+               keys: Sequence[str] = PARAM_KEYS) -> list[float]:
     """Initial search step per coordinate — see PARAM_STDS."""
-    v = [PARAM_STDS[k] for k in PARAM_KEYS]
+    v = [PARAM_STDS[k] for k in keys]
     return v + v if split else v
 
 
-def x_to_values(x: Sequence[float]) -> tuple[dict[str, float], dict[str, float]]:
-    """-> (early values, late values). Identical unless the run is split."""
-    n = len(PARAM_KEYS)
-    early = {ANCHOR: 1.0}
-    for k, v in zip(PARAM_KEYS, x[:n]):
+def x_to_values(x: Sequence[float], keys: Sequence[str] = PARAM_KEYS,
+                fixed: Optional[dict] = None
+                ) -> tuple[dict[str, float], dict[str, float]]:
+    """-> (early values, late values). Identical unless the run is split.
+
+    `fixed` holds the archetype constraints, merged in after the searched
+    coordinates so a pinned weight cannot drift.
+    """
+    keys = list(keys)
+    n = len(keys)
+    base = {ANCHOR: 1.0, **(fixed or {})}
+    early = dict(base)
+    for k, v in zip(keys, x[:n]):
         early[k] = float(v)
     if len(x) < 2 * n:
         return early, dict(early)
-    late = {ANCHOR: 1.0}
-    for k, v in zip(PARAM_KEYS, x[n:2 * n]):
+    late = dict(base)
+    for k, v in zip(keys, x[n:2 * n]):
         late[k] = float(v)
     return early, late
 
 
 def write_candidate(x: Sequence[float], scales: Scales, path: Path,
                     name: str, depth: int, meta: Optional[dict] = None,
-                    lam: float = FIXED_LAMBDA) -> Path:
+                    lam: float = FIXED_LAMBDA,
+                    features: Sequence[str] = CORE_FEATURES,
+                    fixed: Optional[dict] = None,
+                    alpha: float = 1.0, beta: float = 1.0) -> Path:
     """Materialise a parameter vector as a weights file a worker can load."""
-    early, late = x_to_values(x)
+    keys = param_keys(features, fixed)
+    early, late = x_to_values(x, keys, fixed)
     anchor_scale = scales.get(ANCHOR)
 
     def to_w(values):
-        return {k: values[k] * scales.get(k) / anchor_scale for k in CORE_FEATURES}
+        return {k: values.get(k, 0.0) * scales.get(k) / anchor_scale
+                for k in features}
 
     blob = Weights(
         name=name,
-        features=list(CORE_FEATURES),
+        features=list(features),
         w_early=to_w(early),
         w_late=to_w(late),
         lam=min(LAMBDA_MAX, max(0.0, lam)),
-        params={"ttc_depth": depth, "alpha": 1.0, "beta": 1.0},
+        params={"ttc_depth": depth, "alpha": alpha, "beta": beta},
         meta={"source": "cma", "value_in_points": early,
               "value_in_points_late": late,
-              "phase_split": early != late, **(meta or {})},
+              "phase_split": early != late,
+              "fixed": dict(fixed or {}), **(meta or {})},
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     blob.save(path)
@@ -292,6 +375,14 @@ class TuneConfig:
     # for generation 0, a 7.2-hour projection for 50 generations.
     split: bool = False         # 6b: separate early-game and late-game weights
     start_from: Optional[str] = None   # weights file to seed x0 from
+    # --- Step 9 archetypes ---------------------------------------------
+    # `features` lets an archetype swap best_target for shaped_target;
+    # `fixed` pins the weights that define the archetype; alpha/beta shape
+    # the points-versus-distance trade-off that Rush and Big-card differ on.
+    features: tuple = CORE_FEATURES
+    fixed: dict = field(default_factory=dict)
+    alpha: float = 1.0
+    beta: float = 1.0
     pool_handset: str = "depth2"
     # Validation is against the Step 4 artefact exactly as it ships, so the
     # number stays comparable to the 90.8% recorded in API_NOTES §11.
@@ -339,20 +430,23 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
         with open(state_path, "rb") as fh:
             saved = pickle.load(fh)
         es, start_gen, hof = saved["es"], saved["generation"], saved["hof"]
+        keys = param_keys(cfg.features, cfg.fixed)
         print(f"resuming {run_dir.name} at generation {start_gen}")
     else:
+        keys = param_keys(cfg.features, cfg.fixed)
         es = cma.CMAEvolutionStrategy(
-            x0_from(cfg.start_from, cfg.split), cfg.sigma0,
+            x0_from(cfg.start_from, cfg.split, keys), cfg.sigma0,
             {"popsize": cfg.popsize, "seed": cfg.seed, "verbose": -9,
              # A per-coordinate step, so sigma0 is a multiplier on sensible
              # per-feature ranges rather than one distance for all of them.
-             "CMA_stds": param_stds(cfg.split)})
+             "CMA_stds": param_stds(cfg.split, keys)})
         start_gen, hof = 0, []
         (run_dir / "config.json").write_text(json.dumps({
             "config": cfg.as_dict(),
             "param_keys": list(PARAM_KEYS),
             "anchor": ANCHOR,
-            "x0": x0_from(cfg.start_from, cfg.split),
+            "x0": x0_from(cfg.start_from, cfg.split, keys),
+            "param_keys_used": list(keys),
             "git_commit": git_commit(),
             "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }, indent=2))
@@ -371,7 +465,9 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
             for i, x in enumerate(xs):
                 p = write_candidate(x, scales, cand_dir / f"g{gen:03d}_c{i:02d}.json",
                                     name=f"g{gen:03d}c{i:02d}", depth=cfg.depth,
-                                    meta={"generation": gen, "candidate": i})
+                                    meta={"generation": gen, "candidate": i},
+                                    features=cfg.features, fixed=cfg.fixed,
+                                    alpha=cfg.alpha, beta=cfg.beta)
                 specs.append(str(p))
 
             # Common random numbers: one seed list for the whole generation,
@@ -392,7 +488,9 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
                             depth=cfg.depth,
                             meta={"generation": gen,
                                   "win_rate": fits[best_i].win_rate,
-                                  "mean_margin": fits[best_i].mean_margin})
+                                  "mean_margin": fits[best_i].mean_margin},
+                            features=cfg.features, fixed=cfg.fixed,
+                            alpha=cfg.alpha, beta=cfg.beta)
 
             # The estimate of the optimum, and the thing worth shipping and
             # validating — see validate(). `best.json` is kept alongside it
@@ -400,7 +498,9 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
             mean_x = [float(v) for v in es.result.xfavorite]
             mean_path = run_dir / "mean.json"
             write_candidate(mean_x, scales, mean_path, name=f"mean_g{gen:03d}",
-                            depth=cfg.depth, meta={"generation": gen})
+                            depth=cfg.depth, meta={"generation": gen},
+                            features=cfg.features, fixed=cfg.fixed,
+                            alpha=cfg.alpha, beta=cfg.beta)
 
             if (gen + 1) % cfg.hof_every == 0:
                 hof_path = cand_dir / f"hof_g{gen:03d}.json"
@@ -410,7 +510,7 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
                 hof[:] = hof[-4:]        # keep the last four
 
             elapsed = time.perf_counter() - t0
-            early_v, late_v = x_to_values(best_x)
+            early_v, late_v = x_to_values(best_x, keys, cfg.fixed)
             record = {
                 "generation": gen,
                 "elapsed_s": elapsed,
@@ -466,6 +566,8 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=18)
     ap.add_argument("--validate-every", type=int, default=10)
     ap.add_argument("--validate-games", type=int, default=500)
+    ap.add_argument("--archetype", choices=sorted(ARCHETYPES),
+                    help="Step 9: tune a constrained archetype")
     ap.add_argument("--split", action="store_true",
                     help="6b: tune separate early-game and late-game weights")
     ap.add_argument("--start-from", default=None,
@@ -487,6 +589,11 @@ def main() -> None:
         run(cfg, run_dir, resume=True)
         return
 
+    extra = {}
+    if args.archetype:
+        a = ARCHETYPES[args.archetype]
+        extra = {"features": ARCHETYPE_FEATURES, "fixed": a["fixed"],
+                 "alpha": a["alpha"], "beta": a["beta"]}
     cfg = TuneConfig(generations=args.generations, games=args.games,
                      popsize=args.popsize, sigma0=args.sigma0, seed=args.seed,
                      depth=args.depth, workers=args.workers,
@@ -494,7 +601,7 @@ def main() -> None:
                      validate_games=args.validate_games,
                      split=args.split, start_from=args.start_from,
                      pool_handset=args.pool_handset,
-                     validate_handset=args.validate_handset)
+                     validate_handset=args.validate_handset, **extra)
     run_id = args.run_id or datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     run(cfg, TUNE_DIR / run_id)
 
