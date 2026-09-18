@@ -74,10 +74,41 @@ def test_x0_can_be_seeded_from_a_weights_file():
 
 
 def test_every_parameter_has_a_step():
-    assert set(PARAM_STDS) == set(PARAM_KEYS)
+    """PARAM_STDS must cover every searched key, and may hold more.
+
+    Step 9 adds steps for shaped_target and golem_count, which only appear
+    in archetype runs, so a strict equality here would fail for a feature
+    set that is legitimately larger than the core twelve.
+    """
+    assert set(PARAM_KEYS) <= set(PARAM_STDS)
     stds = param_stds()
     assert len(stds) == len(PARAM_KEYS)
     assert all(s > 0 for s in stds)
+
+
+def test_archetype_keys_all_have_steps():
+    from bots.tune import ARCHETYPE_FEATURES, ARCHETYPES, param_keys
+    for name, spec in ARCHETYPES.items():
+        for k in param_keys(ARCHETYPE_FEATURES, spec["fixed"]):
+            assert k in PARAM_STDS, (name, k)
+
+
+def test_archetypes_swap_rather_than_add_the_shaped_target():
+    """Adding shaped_target alongside best_target screened at 23.4% - two
+    copies of points-over-distance double the promise term. Swapping is
+    lossless because they are the same quantity at alpha=beta=1."""
+    from bots.tune import ARCHETYPE_FEATURES
+    assert "shaped_target" in ARCHETYPE_FEATURES
+    assert "best_target" not in ARCHETYPE_FEATURES
+
+
+def test_archetypes_are_actually_distinct():
+    from bots.tune import ARCHETYPES
+    assert ARCHETYPES["rush"]["beta"] >= 2.0
+    assert ARCHETYPES["rush"]["fixed"]["golem_count"] > 0
+    assert ARCHETYPES["bigcard"]["alpha"] >= 1.5
+    assert ARCHETYPES["bigcard"]["fixed"]["golem_count"] == 0.0
+    assert ARCHETYPES["balanced"]["fixed"] == {}
 
 
 def test_steps_are_per_coordinate_not_uniform():
