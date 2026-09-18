@@ -115,7 +115,8 @@ def main() -> None:
     seeds = list(range(args.seed_base, args.seed_base + args.games))
 
     print(f"screening {len(keys)} feature(s) against {args.base}, "
-          f"{args.games * 2} games per variant, {len(SWEEP)} weights each")
+          f"{args.games * 2} games per variant, {len(SWEEP)} weights each",
+          flush=True)
     print(f"{'feature':<18}{'contrib':>9}{'win rate':>10}{'95% CI':>18}{'margin':>9}")
     print("-" * 66)
 
@@ -135,7 +136,8 @@ def main() -> None:
                 lo, hi = r["ci"]
                 flag = "  <-- beats base" if lo > 0.5 else ""
                 print(f"{key:<18}{c:>+9.1f}{r['win_rate']:>9.1%}"
-                      f"{f'[{lo:.1%}, {hi:.1%}]':>18}{r['mean_margin']:>+9.1f}{flag}")
+                      f"{f'[{lo:.1%}, {hi:.1%}]':>18}{r['mean_margin']:>+9.1f}{flag}",
+                      flush=True)
                 if best is None or r["win_rate"] > best["win_rate"]:
                     best = r
             (out_dir / "results.json").write_text(json.dumps(
@@ -144,7 +146,7 @@ def main() -> None:
                  "created": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                  "records": records}, indent=2))
             print(f"{'':<18}{'best:':>9}{best['win_rate']:>9.1%}  "
-                  f"at contribution {best['contribution']:+.1f}")
+                  f"at contribution {best['contribution']:+.1f}", flush=True)
     finally:
         pool.close()
         pool.join()
