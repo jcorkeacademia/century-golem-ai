@@ -9,7 +9,7 @@ plays the highest-scoring one, and had those weights tuned by
 evolutionary search over self-play. The weights, plus what happens when
 each is removed, are the findings below.
 
-Evidence base: **49,300 recorded tournament games**, 171 tuning generations, 41,700 logged decisions.
+Evidence base: **49,300 recorded tournament games**, 221 tuning generations, 41,700 logged decisions.
 
 Every claim cites the number behind it. Where a number is not solid, it
 says so.
@@ -222,17 +222,16 @@ real rather than a comparison between two weak things.
 * **Opponents do not matter** — four experiments, four different designs.
 * **Ending the game beats scoring well** — three experiments.
 * **Magenta is about 2.3 yellows** — two unrelated methods, 2.26 from direct play and 2.29 from the tuned weights.
-* **Yellow is undervalued** — confirmed three ways: 6.5x the hand-set
-  estimate, +3.9 percentage points measured directly, and 19
-  points of win rate to remove.
-* **Production is undervalued** — about 2.9x the hand-set estimate,
-  reproduced across independent tuning runs.
+* **Yellow is undervalued** — confirmed three ways: 6.3x the hand-set estimate (0.32 against 0.05, the only weight to come out *stable* across 5 runs), +3.9 percentage points measured directly, and 19 points of
+  win rate to remove.
+* **Production is undervalued** — every one of 5 runs put it above the hand-set 1.0, ranging 1.8 to 3.4 (mean 2.8). The *direction* is solid; the
+  magnitude is not, and widened when runs four and five were added.
 * **Nine of twelve features are load-bearing** — 2,000 games each.
 
 ### Not solid
 
-* **4 of the 11 tuned feature weights never
-  stabilised** across 3 independent tuning runs: `token_points`, `playable_now`, `exhausted`, `dead_hand`.
+* **3 of the 11 tuned feature weights never
+  stabilised** across 5 independent tuning runs: `token_race`, `exhausted`, `dead_hand`.
   Their values should not be quoted. Note this is about the
   *weights*, not the features: `playable_now` has one of the least
   stable weights and the second largest ablation cost.
@@ -258,8 +257,8 @@ Tuning disagreed with most of it.
 
 | | guessed | measured | |
 |---|---|---|---|
-| yellow crystal | 0.05 | 0.32 | **6.5x too low** |
-| production | 1.00 | 2.88 | **2.9x too low** |
+| yellow crystal | 0.05 | 0.32 | **6.3x too low** |
+| production | 1.00 | 2.77 | **2.8x too low** |
 | a nearly-affordable golem | 0.35 | 0.66 | 1.9x too low |
 | a wasted turn | -2.00 | ~0 | it barely matters |
 

@@ -1,0 +1,58 @@
+{
+  "generation": 23,
+  "elapsed_s": 154.074231400009,
+  "games": 2400,
+  "sigma": 0.44586299240707955,
+  "best_loss": -1.03705,
+  "best_win_rate": 0.805,
+  "best_mean_margin": 23.205,
+  "mean_loss": -0.8765333333333333,
+  "best_values": {
+    "golem_points": 1.0,
+    "token_points": 1.009277821170642,
+    "cry_y": 0.3208690810124812,
+    "cry_g": 0.5974276690706363,
+    "cry_b": 1.1316609770111477,
+    "cry_m": 1.1479150153935205,
+    "best_target": 0.36645478026610173,
+    "token_race": 0.543087503712667,
+    "throughput": 3.3628378573232824,
+    "playable_now": 0.156162737439759,
+    "exhausted": 0.10309127269518986,
+    "dead_hand": -2.917563264858166
+  },
+  "best_values_late": {
+    "golem_points": 1.0,
+    "token_points": 1.009277821170642,
+    "cry_y": 0.3208690810124812,
+    "cry_g": 0.5974276690706363,
+    "cry_b": 1.1316609770111477,
+    "cry_m": 1.1479150153935205,
+    "best_target": 0.36645478026610173,
+    "token_race": 0.543087503712667,
+    "throughput": 3.3628378573232824,
+    "playable_now": 0.156162737439759,
+    "exhausted": 0.10309127269518986,
+    "dead_hand": -2.917563264858166
+  },
+  "phase_split": false,
+  "mean_x": [
+    1.048106434170924,
+    0.3743515110491833,
+    0.5858938998689135,
+    1.0064862328550574,
+    1.2000307955521323,
+    0.35488717663728714,
+    0.5222124115604212,
+    3.3233552275391673,
+    0.12969561803965637,
+    0.05684844495613253,
+    -2.344250555245447
+  ],
+  "hof": [
+    "C:\\Users\\jcork\\century\\results\\tune\\run05\\candidates\\hof_g004.json",
+    "C:\\Users\\jcork\\century\\results\\tune\\run05\\candidates\\hof_g009.json",
+    "C:\\Users\\jcork\\century\\results\\tune\\run05\\candidates\\hof_g014.json",
+    "C:\\Users\\jcork\\century\\results\\tune\\run05\\candidates\\hof_g019.json"
+  ]
+}

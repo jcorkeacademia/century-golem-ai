@@ -1,0 +1,87 @@
+{
+  "name": "tuned_g024",
+  "features": [
+    "golem_points",
+    "token_points",
+    "cry_y",
+    "cry_g",
+    "cry_b",
+    "cry_m",
+    "best_target",
+    "token_race",
+    "throughput",
+    "playable_now",
+    "exhausted",
+    "dead_hand"
+  ],
+  "w_early": {
+    "golem_points": 1.0,
+    "token_points": 0.11032050244982865,
+    "cry_y": 0.02574961016161787,
+    "cry_g": 0.03993318029901443,
+    "cry_b": 0.0480141506909494,
+    "cry_m": 0.04933617530816816,
+    "best_target": 0.07007605809578947,
+    "token_race": 0.01540174073024429,
+    "throughput": 0.02536014310797081,
+    "playable_now": 0.062249271187117,
+    "exhausted": 0.036153456897629034,
+    "dead_hand": -0.0610214298283526
+  },
+  "w_late": {
+    "golem_points": 1.0,
+    "token_points": 0.11032050244982865,
+    "cry_y": 0.02574961016161787,
+    "cry_g": 0.03993318029901443,
+    "cry_b": 0.0480141506909494,
+    "cry_m": 0.04933617530816816,
+    "best_target": 0.07007605809578947,
+    "token_race": 0.01540174073024429,
+    "throughput": 0.02536014310797081,
+    "playable_now": 0.062249271187117,
+    "exhausted": 0.036153456897629034,
+    "dead_hand": -0.0610214298283526
+  },
+  "lambda": 0.0,
+  "params": {
+    "ttc_depth": 2,
+    "alpha": 1.0,
+    "beta": 1.0
+  },
+  "meta": {
+    "source": "cma",
+    "value_in_points": {
+      "golem_points": 1.0,
+      "token_points": 1.13940846169455,
+      "cry_y": 0.2449596137213108,
+      "cry_g": 0.5239957646417721,
+      "cry_b": 0.8988382037134873,
+      "cry_m": 1.3250881134579353,
+      "best_target": 0.4526010772011051,
+      "token_race": 0.6252169462850322,
+      "throughput": 1.7638988131185807,
+      "playable_now": 0.18511791607186426,
+      "exhausted": 0.08551094831476987,
+      "dead_hand": -3.854109646736264
+    },
+    "value_in_points_late": {
+      "golem_points": 1.0,
+      "token_points": 1.13940846169455,
+      "cry_y": 0.2449596137213108,
+      "cry_g": 0.5239957646417721,
+      "cry_b": 0.8988382037134873,
+      "cry_m": 1.3250881134579353,
+      "best_target": 0.4526010772011051,
+      "token_race": 0.6252169462850322,
+      "throughput": 1.7638988131185807,
+      "playable_now": 0.18511791607186426,
+      "exhausted": 0.08551094831476987,
+      "dead_hand": -3.854109646736264
+    },
+    "phase_split": false,
+    "fixed": {},
+    "generation": 24,
+    "win_rate": 0.82,
+    "mean_margin": 22.07
+  }
+}

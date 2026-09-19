@@ -266,11 +266,23 @@ def build() -> str:
     add("* **Ending the game beats scoring well** — three experiments.")
     add(f"* **Magenta is about {ratios[-1]:.1f} yellows** — two unrelated methods, "
         f"{ratios[-1]:.2f} from direct play and 2.29 from the tuned weights.")
-    add("* **Yellow is undervalued** — confirmed three ways: 6.5x the hand-set")
-    add(f"  estimate, {yel:+.1f} percentage points measured directly, and 19")
-    add("  points of win rate to remove.")
-    add("* **Production is undervalued** — about 2.9x the hand-set estimate,")
-    add("  reproduced across independent tuning runs.")
+    py = stab["parameters"]["cry_y"] if stab else None
+    pt = stab["parameters"]["throughput"] if stab else None
+    if py:
+        add(f"* **Yellow is undervalued** — confirmed three ways: "
+            f"{py['mean']/py['hand_set']:.1f}x the hand-set estimate "
+            f"({py['mean']:.2f} against {py['hand_set']:.2f}, the only weight "
+            f"to come out *stable* across {len(stab['runs'])} runs), "
+            f"{yel:+.1f} percentage points measured directly, and 19 points of")
+        add("  win rate to remove.")
+    if pt:
+        lo = min(pt["per_run"].values())
+        hi = max(pt["per_run"].values())
+        add(f"* **Production is undervalued** — every one of "
+            f"{len(stab['runs'])} runs put it above the hand-set "
+            f"{pt['hand_set']:.1f}, ranging {lo:.1f} to {hi:.1f} "
+            f"(mean {pt['mean']:.1f}). The *direction* is solid; the")
+        add("  magnitude is not, and widened when runs four and five were added.")
     add("* **Nine of twelve features are load-bearing** — 2,000 games each.")
     add("")
     add("### Not solid")
@@ -307,8 +319,12 @@ def build() -> str:
     add("")
     add("| | guessed | measured | |")
     add("|---|---|---|---|")
-    add("| yellow crystal | 0.05 | 0.32 | **6.5x too low** |")
-    add("| production | 1.00 | 2.88 | **2.9x too low** |")
+    if py:
+        add(f"| yellow crystal | {py['hand_set']:.2f} | {py['mean']:.2f} | "
+            f"**{py['mean']/py['hand_set']:.1f}x too low** |")
+    if pt:
+        add(f"| production | {pt['hand_set']:.2f} | {pt['mean']:.2f} | "
+            f"**{pt['mean']/pt['hand_set']:.1f}x too low** |")
     add("| a nearly-affordable golem | 0.35 | 0.66 | 1.9x too low |")
     add("| a wasted turn | -2.00 | ~0 | it barely matters |")
     add("")

@@ -1,0 +1,78 @@
+{
+  "generation": 24,
+  "elapsed_s": 158.01237919999403,
+  "games": 2400,
+  "sigma": 0.3642392423936783,
+  "best_loss": -1.0407,
+  "best_win_rate": 0.82,
+  "best_mean_margin": 22.07,
+  "mean_loss": -0.9700666666666667,
+  "best_values": {
+    "golem_points": 1.0,
+    "token_points": 1.13940846169455,
+    "cry_y": 0.2449596137213108,
+    "cry_g": 0.5239957646417721,
+    "cry_b": 0.8988382037134873,
+    "cry_m": 1.3250881134579353,
+    "best_target": 0.4526010772011051,
+    "token_race": 0.6252169462850322,
+    "throughput": 1.7638988131185807,
+    "playable_now": 0.18511791607186426,
+    "exhausted": 0.08551094831476987,
+    "dead_hand": -3.854109646736264
+  },
+  "best_values_late": {
+    "golem_points": 1.0,
+    "token_points": 1.13940846169455,
+    "cry_y": 0.2449596137213108,
+    "cry_g": 0.5239957646417721,
+    "cry_b": 0.8988382037134873,
+    "cry_m": 1.3250881134579353,
+    "best_target": 0.4526010772011051,
+    "token_race": 0.6252169462850322,
+    "throughput": 1.7638988131185807,
+    "playable_now": 0.18511791607186426,
+    "exhausted": 0.08551094831476987,
+    "dead_hand": -3.854109646736264
+  },
+  "phase_split": false,
+  "mean_x": [
+    1.206315343242176,
+    0.23688290804824436,
+    0.46753225099485357,
+    0.8063777082684271,
+    1.1942451333025277,
+    0.433340560368076,
+    0.635538187692355,
+    1.7640409322993416,
+    0.18913972787197855,
+    0.09285946456910023,
+    -3.4672575955111657
+  ],
+  "hof": [
+    "C:\\Users\\jcork\\century\\results\\tune\\run04\\candidates\\hof_g009.json",
+    "C:\\Users\\jcork\\century\\results\\tune\\run04\\candidates\\hof_g014.json",
+    "C:\\Users\\jcork\\century\\results\\tune\\run04\\candidates\\hof_g019.json",
+    "C:\\Users\\jcork\\century\\results\\tune\\run04\\candidates\\hof_g024.json"
+  ],
+  "validation": {
+    "greedy": {
+      "win_rate": 0.97375,
+      "ci": [
+        0.960203945095893,
+        0.9827679040843436
+      ],
+      "mean_margin": 32.9525,
+      "games": 800
+    },
+    "handset_v1": {
+      "win_rate": 0.7825,
+      "ci": [
+        0.7525984324613131,
+        0.8097014037253187
+      ],
+      "mean_margin": 11.91625,
+      "games": 800
+    }
+  }
+}
