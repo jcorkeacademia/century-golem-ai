@@ -29,6 +29,11 @@ class Room:
     # table (so "whoever's name you typed" doesn't always play first) —
     # meaningless outside a solo room, where every seat is a real person.
     human_seat: int = 0
+    # Which bot plays the computer seats — see bot_policy.DIFFICULTIES.
+    # Chosen once when the solo room is created and kept for the life of the
+    # game, so reconnecting mid-game does not silently change opponent.
+    # Meaningless outside a solo room.
+    difficulty: str = "hard"
 
     # Per-seat turn clock (main.py's _credit_turn_time): accumulated_seconds
     # holds every *completed* turn's duration, seat -> total seconds;

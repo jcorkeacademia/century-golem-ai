@@ -27,7 +27,8 @@ import card_art
 from rooms import Room, ROOMS, get_or_create_room, MAX_SEATS
 from serialize import game_to_state
 from actions import build_action, MalformedAction
-from simulate import play_to_end, pick_action
+from simulate import play_to_end
+from bot_policy import DEFAULT_DIFFICULTY, normalise as normalise_difficulty, pick_action
 
 # Pacing for solo mode's auto-played bot seats (see _play_bots) — long enough
 # to actually watch a card land before the next one does, short enough that
@@ -191,11 +192,12 @@ async def ws_room(
     avatar: str = Query(DEFAULT_AVATAR),
     solo: bool = Query(False),
     players: int = Query(4),
+    difficulty: str = Query(DEFAULT_DIFFICULTY),
 ) -> None:
     await websocket.accept()
 
     if solo:
-        await _run_solo(websocket, room_id, name, avatar, players)
+        await _run_solo(websocket, room_id, name, avatar, players, difficulty)
         return
 
     room, seat = await _attach(room_id, name, avatar, websocket)
@@ -224,16 +226,18 @@ async def ws_room(
             await _broadcast_lobby(room)
 
 
-async def _run_solo(websocket: WebSocket, room_id: str, name: str, avatar: str, players: int) -> None:
+async def _run_solo(websocket: WebSocket, room_id: str, name: str, avatar: str,
+                    players: int, difficulty: str = DEFAULT_DIFFICULTY) -> None:
     """Practice mode: you play one seat, every other seat plays itself
-    (simulate.py's naive pick_action policy — prefer claiming a golem, else
-    a random legal action) so a whole game runs without needing other
-    people. Which seat is yours is shuffled at room creation (see
+    (bot_policy.pick_action at the chosen difficulty — `hard` is the tuned
+    bot from results/REPORT.md, `easy` the original claim-or-random policy)
+    so a whole game runs without needing other people. Which seat is yours is shuffled at room creation (see
     room.human_seat below) rather than always being 0 — nothing else here
     or in Board.jsx assumes a fixed seat, since real multiplayer already
     requires everything to key off state.you/game.current instead.
     """
     players = max(2, min(MAX_SEATS, players))
+    difficulty = normalise_difficulty(difficulty)
 
     room = ROOMS.get(room_id)
     if room is None:
@@ -244,7 +248,8 @@ async def _run_solo(websocket: WebSocket, room_id: str, name: str, avatar: str, 
         human_seat = order.index(0)
         avatars: list[Optional[str]] = [None] * players
         avatars[human_seat] = avatar
-        room = Room(room_id=room_id, names=names, avatars=avatars, solo=True, human_seat=human_seat)
+        room = Room(room_id=room_id, names=names, avatars=avatars, solo=True,
+                    human_seat=human_seat, difficulty=difficulty)
         room.game = Game(names, seed=None, log=True)
         room.started = True
         room.turn_clock_started = time.monotonic()
@@ -281,7 +286,7 @@ async def _play_bots(room: Room) -> None:
     game = room.game
     while not game.game_over and game.current != room.human_seat:
         acting_seat = game.current
-        action = pick_action(game)
+        action = pick_action(game, room.difficulty)
         if action is None:
             break
         game.apply_action(action)

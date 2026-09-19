@@ -5,13 +5,18 @@
 // matters the first time this name joins a room (see CONTRACT.md's
 // Connecting note) — a reconnect just carries it along harmlessly.
 
-export function createGameConnection({ serverUrl, roomId, name, avatarId, solo = false, playerCount, onState, onLobby, onError, onStatusChange }) {
+export function createGameConnection({ serverUrl, roomId, name, avatarId, solo = false, playerCount, difficulty, onState, onLobby, onError, onStatusChange }) {
   let url = `${serverUrl}/ws/${encodeURIComponent(roomId)}?name=${encodeURIComponent(name)}&avatar=${encodeURIComponent(avatarId)}`
   // Solo/practice mode (main.py's _run_solo): the game starts the instant
   // this socket connects, no lobby round-trip — `players` tells the server
   // how many total seats to fill; you play seat 0, the rest auto-play
   // themselves server-side.
-  if (solo) url += `&solo=true&players=${encodeURIComponent(playerCount)}`
+  if (solo) {
+    url += `&solo=true&players=${encodeURIComponent(playerCount)}`
+    // Omitted rather than defaulted client-side: the server owns the
+    // default (bot_policy.DEFAULT_DIFFICULTY) so the two cannot disagree.
+    if (difficulty) url += `&difficulty=${encodeURIComponent(difficulty)}`
+  }
   const ws = new WebSocket(url)
 
   onStatusChange('connecting')

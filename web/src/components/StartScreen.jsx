@@ -17,6 +17,10 @@ export default function StartScreen({ initialError, onSubmit, onSoloSubmit }) {
   const [avatarId, setAvatarId] = useState(null)
   const [error, setError] = useState(initialError || null)
   const [soloBots, setSoloBots] = useState(4)
+  // Which opponent the practice bots use. 'hard' is the tuned bot from
+  // results/REPORT.md — it beats the rule-based one ~98% of the time, so
+  // 'medium' is the sane default for a first game and 'hard' is opt-in.
+  const [soloSkill, setSoloSkill] = useState('medium')
 
   const trimmedCode = roomCode.trim().toUpperCase()
   const canSubmit = name.trim().length > 0 && avatarId !== null
@@ -48,7 +52,7 @@ export default function StartScreen({ initialError, onSubmit, onSoloSubmit }) {
       setError('Choose an avatar.')
       return
     }
-    onSoloSubmit(trimmed, avatarId, soloBots + 1)
+    onSoloSubmit(trimmed, avatarId, soloBots + 1, soloSkill)
   }
 
   // Ten real photos are a lot heavier than the old inline-SVG glyphs — kick
@@ -175,6 +179,19 @@ export default function StartScreen({ initialError, onSubmit, onSoloSubmit }) {
                     {n}
                   </option>
                 ))}
+              </select>
+              <label className="join-solo-count-label" htmlFor="join-solo-skill">
+                Skill
+              </label>
+              <select
+                id="join-solo-skill"
+                className="join-solo-count join-solo-skill"
+                value={soloSkill}
+                onChange={(e) => setSoloSkill(e.target.value)}
+              >
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
               </select>
               <button type="button" className="join-btn join-btn-secondary" disabled={!canSubmit} onClick={handleSoloSubmit}>
                 Practice solo

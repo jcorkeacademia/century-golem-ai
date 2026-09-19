@@ -19,6 +19,27 @@ list (`web/src/avatars.js`) — the server stores and echoes it back verbatim in
 `lobby`/`state`, it doesn't validate against that list itself. See §1d/§2 "Lobby" for
 how a room fills and starts.
 
+**Practice mode** (`server/main.py`'s `_run_solo`) adds three optional query
+params and skips the lobby entirely — the game starts the instant the socket
+connects, and every seat but yours is played server-side:
+
+```
+ws://<server>/ws/<room_id>?name=<name>&avatar=<avatar_id>
+                          &solo=true&players=<2-5>&difficulty=<easy|medium|hard>
+```
+
+* `players` is the **total** seat count including you, clamped to 2-5.
+* `difficulty` picks the opponent (`server/bot_policy.py`). `easy` is the
+  original claim-or-random policy, `medium` is the rule-based GreedyBot, and
+  `hard` is the tuned bot from `results/REPORT.md`. Anything unrecognised —
+  including the param being absent — falls back to the server's default, so
+  the client never needs to know what that default is.
+* Which seat you get is shuffled at room creation, so read it off
+  `state.you` like any other game. Nothing assumes seat 0.
+
+The difficulty is fixed when the room is created and kept for the life of the
+game, so a mid-game reconnect cannot silently change opponent.
+
 ---
 
 ## Message envelope

@@ -9,9 +9,17 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-_ENGINE_DIR = Path(__file__).resolve().parent.parent / "engine"
+_ROOT = Path(__file__).resolve().parent.parent
+_ENGINE_DIR = _ROOT / "engine"
 if str(_ENGINE_DIR) not in sys.path:
     sys.path.insert(0, str(_ENGINE_DIR))
+# The repo root too, so `bots` (the tuned practice-mode opponent) can be
+# imported. Both this and bots/_engine.py add engine/ the same way and
+# import `century_engine` under the same name, so there is exactly one
+# engine module in the process and isinstance checks across the two still
+# hold.
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 import century_engine as engine  # noqa: E402
 import century_cards as cards  # noqa: E402

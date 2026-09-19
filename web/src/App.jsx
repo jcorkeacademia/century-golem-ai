@@ -34,8 +34,8 @@ function storeSession(session) {
       localStorage.removeItem(SESSION_KEY)
       return
     }
-    const { name, roomId, avatarId, solo, playerCount } = session
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ name, roomId, avatarId, solo, playerCount }))
+    const { name, roomId, avatarId, solo, playerCount, difficulty } = session
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ name, roomId, avatarId, solo, playerCount, difficulty }))
   } catch {
     // Storage unavailable (private browsing, quota, etc.) — a refresh just
     // won't resume; nothing here needs to crash over it.
@@ -59,6 +59,7 @@ export default function App() {
     avatarId: session?.avatarId,
     solo: session?.solo,
     playerCount: session?.playerCount,
+    difficulty: session?.difficulty,
     attempt: session?.attempt,
     enabled: session !== null,
   })
@@ -74,9 +75,9 @@ export default function App() {
   // Practice mode (StartScreen's "Practice solo" toggle): always a brand
   // new room, never a code someone typed in, since there's no one else to
   // share it with.
-  function handleSoloSubmit(name, avatarId, playerCount) {
+  function handleSoloSubmit(name, avatarId, playerCount, difficulty) {
     setSession((prev) => {
-      const next = { name, roomId: randomRoomCode(), avatarId, solo: true, playerCount, attempt: (prev?.attempt || 0) + 1 }
+      const next = { name, roomId: randomRoomCode(), avatarId, solo: true, playerCount, difficulty, attempt: (prev?.attempt || 0) + 1 }
       storeSession(next)
       return next
     })

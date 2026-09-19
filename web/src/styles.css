@@ -2024,8 +2024,11 @@ button:hover:not(:disabled) {
 .join-solo-controls {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  flex-shrink: 0;
+  /* Wraps rather than overflowing: this row carries a bot count, a skill
+     select and the button, which is more than fits on a phone. */
+  flex-wrap: wrap;
 }
 .join-solo-count-label {
   font-size: 12px;
@@ -2043,6 +2046,10 @@ button:hover:not(:disabled) {
 }
 .join-solo-count:focus {
   border-color: var(--turn-gold);
+}
+/* Wider than the bot count — it holds words, not digits. */
+.join-solo-skill {
+  min-width: 84px;
 }
 
 /* ---------- trade dialog ---------- */
