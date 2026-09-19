@@ -1,0 +1,11 @@
+arch_rush vs arch_bigcard   2p, 2000 games (1000 seeds x 2 rotations)
+  172.8s   11.6 games/s   mean length 83 actions   capped 0   unfinished 0
+
+  bot                 win rate            95% CI   score  margin  golems  pts/gol   ended
+  ---------------------------------------------------------------------------------------
+  arch_rush             62.5%    [60.4%, 64.6%]    72.0    +1.0    5.74     11.5   67.4%
+  arch_bigcard          37.5%    [35.4%, 39.6%]    71.1    -1.0    4.84     13.4   32.6%
+
+  win rate by seat (each bot plays every seat equally often):
+    arch_rush         seat 0: 61.8%   seat 1: 63.2%
+    arch_bigcard      seat 0: 36.8%   seat 1: 38.2%

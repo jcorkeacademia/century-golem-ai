@@ -1,0 +1,17 @@
+tuned_split#1 vs tuned_split#2 vs arch_rush vs arch_bigcard#1 vs arch_bigcard#2   5p, 1250 games (250 seeds x 5 rotations)
+  146.2s   8.6 games/s   mean length 169 actions   capped 0   unfinished 0
+
+  bot                 win rate            95% CI   score  margin  golems  pts/gol   ended
+  ---------------------------------------------------------------------------------------
+  tuned_split#1         28.1%    [25.7%, 30.6%]    57.1    -8.0    4.28     12.1   31.0%
+  tuned_split#2         25.6%    [23.3%, 28.1%]    56.7    -8.5    4.21     12.1   26.1%
+  arch_rush             21.5%    [19.3%, 23.9%]    54.8   -10.9    4.20     11.7   22.3%
+  arch_bigcard#1        10.9%     [9.3%, 12.7%]    53.7   -12.4    3.53     13.6    8.4%
+  arch_bigcard#2        13.9%    [12.1%, 15.9%]    53.9   -11.8    3.58     13.5   12.2%
+
+  win rate by seat (each bot plays every seat equally often):
+    tuned_split#1     seat 0: 30.8%   seat 1: 30.4%   seat 2: 26.0%   seat 3: 26.0%   seat 4: 27.2%
+    tuned_split#2     seat 0: 29.2%   seat 1: 24.4%   seat 2: 26.0%   seat 3: 22.4%   seat 4: 26.0%
+    arch_rush         seat 0: 23.6%   seat 1: 21.6%   seat 2: 17.2%   seat 3: 20.4%   seat 4: 24.8%
+    arch_bigcard#1    seat 0: 12.0%   seat 1: 14.0%   seat 2:  8.0%   seat 3: 11.2%   seat 4:  9.2%
+    arch_bigcard#2    seat 0: 14.0%   seat 1: 14.8%   seat 2: 10.4%   seat 3: 14.0%   seat 4: 16.4%

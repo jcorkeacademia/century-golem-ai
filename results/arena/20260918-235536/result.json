@@ -1,0 +1,75 @@
+{
+  "meta": {
+    "created": "2026-09-18T23:55:36+00:00",
+    "git_commit": "9f2a070",
+    "python": "3.13.14",
+    "workers": 18,
+    "cap": 1000,
+    "cpu_count": 20
+  },
+  "specs": [
+    "arch_rush",
+    "tuned_split"
+  ],
+  "labels": [
+    "arch_rush",
+    "tuned_split"
+  ],
+  "n_players": 2,
+  "rotate_seats": true,
+  "seeds": [
+    11000000,
+    11000999
+  ],
+  "n_seeds": 1000,
+  "games": 2000,
+  "capped": 1,
+  "unfinished": 1,
+  "mean_length": 83.144,
+  "elapsed_s": 165.81607220000296,
+  "games_per_s": 12.061556961665651,
+  "bots": [
+    {
+      "label": "arch_rush",
+      "games": 2000,
+      "wins": 938.0,
+      "win_rate": 0.469,
+      "ci_low": 0.4472090168711406,
+      "ci_high": 0.49090984442009117,
+      "mean_score": 69.7165,
+      "mean_margin": -2.0885,
+      "mean_golems": 5.363,
+      "points_per_golem": 11.876561625955622,
+      "ended_share": 0.474,
+      "win_rate_by_seat": {
+        "0": 0.479,
+        "1": 0.459
+      },
+      "games_by_seat": {
+        "0": 1000,
+        "1": 1000
+      }
+    },
+    {
+      "label": "tuned_split",
+      "games": 2000,
+      "wins": 1062.0,
+      "win_rate": 0.531,
+      "ci_low": 0.5090901555799089,
+      "ci_high": 0.5527909831288594,
+      "mean_score": 71.805,
+      "mean_margin": 2.0885,
+      "mean_golems": 5.395,
+      "points_per_golem": 12.269601482854496,
+      "ended_share": 0.5255,
+      "win_rate_by_seat": {
+        "0": 0.541,
+        "1": 0.521
+      },
+      "games_by_seat": {
+        "0": 1000,
+        "1": 1000
+      }
+    }
+  ]
+}

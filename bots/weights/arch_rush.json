@@ -1,0 +1,92 @@
+{
+  "name": "arch_rush",
+  "features": [
+    "golem_points",
+    "token_points",
+    "cry_y",
+    "cry_g",
+    "cry_b",
+    "cry_m",
+    "shaped_target",
+    "token_race",
+    "throughput",
+    "playable_now",
+    "exhausted",
+    "dead_hand",
+    "golem_count"
+  ],
+  "w_early": {
+    "golem_points": 1.0,
+    "token_points": 0.09872061774957945,
+    "cry_y": 0.033392324565486256,
+    "cry_g": 0.05857366156197063,
+    "cry_b": 0.06091059099447113,
+    "cry_m": 0.05182673618618571,
+    "shaped_target": 0.042825777923745145,
+    "token_race": 0.01891398720924221,
+    "throughput": 0.04519427669542111,
+    "playable_now": 0.11969129506295745,
+    "exhausted": 0.09650157036438847,
+    "dead_hand": -0.036656102572619455,
+    "golem_count": 0.125716818358907
+  },
+  "w_late": {
+    "golem_points": 1.0,
+    "token_points": 0.07001287468952877,
+    "cry_y": 0.029586887615522695,
+    "cry_g": 0.03578134520178683,
+    "cry_b": 0.024199291066418698,
+    "cry_m": 0.033425950139415815,
+    "shaped_target": 0.10186836691895444,
+    "token_race": 0.020027067694432597,
+    "throughput": 0.035363478082422704,
+    "playable_now": 0.02082012148932674,
+    "exhausted": -0.03693345417600213,
+    "dead_hand": -0.027217952328950613,
+    "golem_count": 0.125716818358907
+  },
+  "lambda": 0.0,
+  "params": {
+    "ttc_depth": 2,
+    "alpha": 1.0,
+    "beta": 2.5
+  },
+  "meta": {
+    "source": "cma",
+    "value_in_points": {
+      "golem_points": 1.0,
+      "golem_count": 1.5,
+      "token_points": 1.0196029270147575,
+      "cry_y": 0.3176658161221735,
+      "cry_g": 0.7685926927986418,
+      "cry_b": 1.1402631392773426,
+      "cry_m": 1.3919804616120095,
+      "shaped_target": 0.2765596149251252,
+      "token_race": 0.7677927795405117,
+      "throughput": 3.1434416865632846,
+      "playable_now": 0.35593996028314745,
+      "exhausted": 0.2282476284104527,
+      "dead_hand": -2.3151971190167817
+    },
+    "value_in_points_late": {
+      "golem_points": 1.0,
+      "golem_count": 1.5,
+      "token_points": 0.723104591416164,
+      "cry_y": 0.2814641664873617,
+      "cry_g": 0.469516156703007,
+      "cry_b": 0.4530174334080162,
+      "cry_m": 0.8977657658729055,
+      "shaped_target": 0.6578438896853478,
+      "token_race": 0.8129770735829136,
+      "throughput": 2.459670544908115,
+      "playable_now": 0.06191522292496911,
+      "exhausted": -0.0873558149659862,
+      "dead_hand": -1.7190841468397684
+    },
+    "phase_split": true,
+    "fixed": {
+      "golem_count": 1.5
+    },
+    "generation": 19
+  }
+}

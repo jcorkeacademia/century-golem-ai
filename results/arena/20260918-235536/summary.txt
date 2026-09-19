@@ -1,0 +1,11 @@
+arch_rush vs tuned_split   2p, 2000 games (1000 seeds x 2 rotations)
+  165.8s   12.1 games/s   mean length 83 actions   capped 1   unfinished 1
+
+  bot                 win rate            95% CI   score  margin  golems  pts/gol   ended
+  ---------------------------------------------------------------------------------------
+  arch_rush             46.9%    [44.7%, 49.1%]    69.7    -2.1    5.36     11.9   47.4%
+  tuned_split           53.1%    [50.9%, 55.3%]    71.8    +2.1    5.39     12.3   52.5%
+
+  win rate by seat (each bot plays every seat equally often):
+    arch_rush         seat 0: 47.9%   seat 1: 45.9%
+    tuned_split       seat 0: 54.1%   seat 1: 52.1%

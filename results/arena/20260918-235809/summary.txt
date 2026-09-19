@@ -1,0 +1,11 @@
+arch_bigcard vs tuned_split   2p, 2000 games (1000 seeds x 2 rotations)
+  152.4s   13.1 games/s   mean length 83 actions   capped 0   unfinished 0
+
+  bot                 win rate            95% CI   score  margin  golems  pts/gol   ended
+  ---------------------------------------------------------------------------------------
+  arch_bigcard          36.6%    [34.5%, 38.7%]    70.5    -2.6    4.85     13.2   31.8%
+  tuned_split           63.4%    [61.3%, 65.5%]    73.1    +2.6    5.73     11.7   68.2%
+
+  win rate by seat (each bot plays every seat equally often):
+    arch_bigcard      seat 0: 36.6%   seat 1: 36.6%
+    tuned_split       seat 0: 63.4%   seat 1: 63.4%
