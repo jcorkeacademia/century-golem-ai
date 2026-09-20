@@ -32,7 +32,7 @@ from datetime import datetime, timezone
 from bots._engine import Acquire, Claim, Game, PlayCrystal, PlayTrade, PlayUpgrade, Rest
 from bots import sim
 from bots.bots import GreedyBot
-from bots.features import (CORE_FEATURES, Ctx, FEATURES, SCALES_PATH,
+from bots.features import (CORE_FEATURES, Ctx, DEFAULT_KAPPA, FEATURES, SCALES_PATH,
                            DEFAULT_TTC_DEPTH, Scales)
 from bots.sim import can_pay, cost_of, shortfall
 
@@ -111,7 +111,7 @@ class TempGreedyBot:
 
 
 def run(n_games: int, n_players: int, depth: int, seed: int, cap: int = 1200,
-        keys=None):
+        keys=None, kappa: float = DEFAULT_KAPPA):
     samples: dict[str, list[float]] = defaultdict(list)
     lengths, finished = [], 0
     t0 = time.perf_counter()
@@ -130,7 +130,7 @@ def run(n_games: int, n_players: int, depth: int, seed: int, cap: int = 1200,
             steps += 1
             # Record the resulting position from the acting seat's view.
             pid = before.current
-            ctx = Ctx(g, depth)
+            ctx = Ctx(g, depth, kappa=kappa)
             for key in (keys or CORE_FEATURES):
                 samples[key].append(FEATURES[key].fn(before, g, pid, ctx))
         lengths.append(steps)
@@ -205,6 +205,9 @@ def main() -> None:
     ap.add_argument("--players", type=int, default=2)
     ap.add_argument("--depth", type=int, default=DEFAULT_TTC_DEPTH)
     ap.add_argument("--seed", type=int, default=1000)
+    ap.add_argument("--kappa", type=float, default=DEFAULT_KAPPA,
+                    help="cost deduction for the target family; the scale "
+                         "of best_target moves with it")
     ap.add_argument("--out", default=str(SCALES_PATH))
     args = ap.parse_args()
 
@@ -222,7 +225,7 @@ def main() -> None:
     print(f"calibrating {len(keys)} feature(s) on {args.games} GreedyBot self-play "
           f"games ({args.players}p, ttc_depth={args.depth}) ...")
     samples, lengths, finished, elapsed = run(args.games, args.players, args.depth,
-                                              args.seed, keys=keys)
+                                              args.seed, keys=keys, kappa=args.kappa)
     scales, diags, flagged = summarise(samples, keys)
 
     if args.merge:

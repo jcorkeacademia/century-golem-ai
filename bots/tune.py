@@ -50,7 +50,13 @@ from pathlib import Path
 from typing import Optional, Sequence
 
 from bots.arena import _play_one, git_commit, wilson
-from bots.features import CORE_FEATURES, WEIGHTS_DIR, Scales, Weights
+from bots.features import (
+    CORE_FEATURES,
+    DEFAULT_KAPPA,
+    WEIGHTS_DIR,
+    Scales,
+    Weights,
+)
 from bots.make_handset import ANCHOR, LAMBDA, VALUE
 
 TUNE_DIR = Path(__file__).resolve().parent.parent / "results" / "tune"
@@ -275,7 +281,8 @@ def write_candidate(x: Sequence[float], scales: Scales, path: Path,
                     lam: float = FIXED_LAMBDA,
                     features: Sequence[str] = CORE_FEATURES,
                     fixed: Optional[dict] = None,
-                    alpha: float = 1.0, beta: float = 1.0) -> Path:
+                    alpha: float = 1.0, beta: float = 1.0,
+                    kappa: float = DEFAULT_KAPPA) -> Path:
     """Materialise a parameter vector as a weights file a worker can load."""
     keys = param_keys(features, fixed)
     early, late = x_to_values(x, keys, fixed)
@@ -291,7 +298,8 @@ def write_candidate(x: Sequence[float], scales: Scales, path: Path,
         w_early=to_w(early),
         w_late=to_w(late),
         lam=min(LAMBDA_MAX, max(0.0, lam)),
-        params={"ttc_depth": depth, "alpha": alpha, "beta": beta},
+        params={"ttc_depth": depth, "alpha": alpha, "beta": beta,
+                "kappa": kappa},
         meta={"source": "cma", "value_in_points": early,
               "value_in_points_late": late,
               "phase_split": early != late,
@@ -420,6 +428,11 @@ class TuneConfig:
     fixed: dict = field(default_factory=dict)
     alpha: float = 1.0
     beta: float = 1.0
+    # Cost deduction for the target family (features.net_points). Fixed
+    # per run rather than searched, exactly like alpha/beta: it changes
+    # what the feature measures, so a candidate that moved it mid-run
+    # would be scored against a different scale than the one calibrated.
+    kappa: float = DEFAULT_KAPPA
     pool_handset: str = "depth2"
     # Validation is against the Step 4 artefact exactly as it ships, so the
     # number stays comparable to the 90.8% recorded in API_NOTES §11.
@@ -505,7 +518,8 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
                                     name=f"g{gen:03d}c{i:02d}", depth=cfg.depth,
                                     meta={"generation": gen, "candidate": i},
                                     features=cfg.features, fixed=cfg.fixed,
-                                    alpha=cfg.alpha, beta=cfg.beta)
+                                    alpha=cfg.alpha, beta=cfg.beta,
+                                    kappa=cfg.kappa)
                 specs.append(str(p))
 
             # Common random numbers: one seed list for the whole generation,
@@ -528,7 +542,8 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
                                   "win_rate": fits[best_i].win_rate,
                                   "mean_margin": fits[best_i].mean_margin},
                             features=cfg.features, fixed=cfg.fixed,
-                            alpha=cfg.alpha, beta=cfg.beta)
+                            alpha=cfg.alpha, beta=cfg.beta,
+                            kappa=cfg.kappa)
 
             # The estimate of the optimum, and the thing worth shipping and
             # validating — see validate(). `best.json` is kept alongside it
@@ -538,7 +553,8 @@ def run(cfg: TuneConfig, run_dir: Path, resume: bool = False) -> None:
             write_candidate(mean_x, scales, mean_path, name=f"mean_g{gen:03d}",
                             depth=cfg.depth, meta={"generation": gen},
                             features=cfg.features, fixed=cfg.fixed,
-                            alpha=cfg.alpha, beta=cfg.beta)
+                            alpha=cfg.alpha, beta=cfg.beta,
+                            kappa=cfg.kappa)
 
             if (gen + 1) % cfg.hof_every == 0:
                 hof_path = cand_dir / f"hof_g{gen:03d}.json"
@@ -615,6 +631,9 @@ def main() -> None:
                          "the candidates' ttc_depth")
     ap.add_argument("--validate-handset", default="handset_v1",
                     help="handset opponent for validation; the shipped artefact")
+    ap.add_argument("--kappa", type=float, default=DEFAULT_KAPPA,
+                    help="cost deduction for the target family; 0 is "
+                         "the pre-fix gross feature")
     ap.add_argument("--resume", default=None, metavar="RUN_DIR")
     ap.add_argument("--run-id", default=None)
     args = ap.parse_args()
@@ -639,7 +658,8 @@ def main() -> None:
                      validate_games=args.validate_games,
                      split=args.split, start_from=args.start_from,
                      pool_handset=args.pool_handset,
-                     validate_handset=args.validate_handset, **extra)
+                     validate_handset=args.validate_handset,
+                     kappa=args.kappa, **extra)
     run_id = args.run_id or datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     run(cfg, TUNE_DIR / run_id)
 

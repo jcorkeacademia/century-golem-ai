@@ -66,8 +66,8 @@ def build(caravan=(0, 0, 0, 0), hand=(), played=(), point_cards=(), tokens=(),
     return g
 
 
-def val(key, game, pid=0, depth=3):
-    return FEATURES[key].fn(game, game, pid, Ctx(game, depth))
+def val(key, game, pid=0, depth=3, kappa=0.0):
+    return FEATURES[key].fn(game, game, pid, Ctx(game, depth, kappa=kappa))
 
 
 UNIT = Scales.unit()
@@ -157,6 +157,67 @@ def test_best_target_discounts_by_ttc():
 def test_best_target_is_zero_on_an_empty_row():
     g = build(row=[])
     assert val("best_target", g) == 0.0
+
+
+# --------------------------------------------------------------------------
+# 7b: the cost deduction (features.net_points)
+#
+# `best_target` used to price a golem you could afford at its full point
+# value while charging nothing for the crystals it would consume, so the
+# caravan was credited twice - once through cry_*, and again through the
+# golem it could buy. Claiming then destroyed the duplicate credit and read
+# as a loss. `kappa` deducts the cost so a target is priced at what it nets.
+# --------------------------------------------------------------------------
+
+def test_kappa_zero_is_the_old_gross_feature():
+    """Every weights file written before the fix must still mean what it
+    meant, so the default has to be an exact no-op."""
+    assert F.DEFAULT_KAPPA == 0.0
+    golem = PointCard(((G, 2),), 10, "2G=10")
+    g = build(caravan=(0, 2, 0, 0), row=[golem])
+    assert val("best_target", g, kappa=0.0) == pytest.approx(10.0)
+
+
+def test_kappa_deducts_the_cost_in_yellow_equivalents():
+    # 2 green = 4 YE; at kappa 0.5 that is 2 points off a 10-point golem.
+    golem = PointCard(((G, 2),), 10, "2G=10")
+    g = build(caravan=(0, 2, 0, 0), row=[golem])
+    assert val("best_target", g, kappa=0.5) == pytest.approx(8.0)
+
+
+def test_kappa_reranks_toward_the_cheaper_golem():
+    """The point of the fix. Gross, the expensive golem wins on points;
+    net, the cheap one wins because it costs less to get there."""
+    cheap = PointCard(((Y, 2),), 8, "2Y=8")          # 2 YE
+    dear = PointCard(((M, 3),), 11, "3M=11")         # 12 YE
+    g = build(caravan=(2, 0, 0, 3), row=[cheap, dear])
+    assert val("best_target", g, kappa=0.0) == pytest.approx(11.0)    # dear
+    assert val("best_target", g, kappa=0.5) == pytest.approx(7.0)     # cheap
+
+
+def test_net_points_floors_at_zero():
+    """A golem whose cost outruns its points is worthless as a target, not a
+    penalty for being on the row."""
+    bad = PointCard(((M, 5),), 4, "5M=4")            # 20 YE against 4 points
+    assert F.net_points(bad, 1.0) == 0.0
+    g = build(caravan=(0, 0, 0, 5), row=[bad])
+    assert val("best_target", g, kappa=1.0) == 0.0
+
+
+def test_kappa_rides_on_the_weights_file():
+    """evaluate() must read it from params, or a tuned kappa would be
+    silently dropped the moment the bot was loaded from disk."""
+    golem = PointCard(((G, 2),), 10, "2G=10")
+    g = build(caravan=(0, 2, 0, 0), row=[golem])
+    keys = ["best_target"]
+    gross = Weights(name="g", features=keys, w_early={"best_target": 1.0},
+                    w_late={"best_target": 1.0}, lam=0.0,
+                    params={"ttc_depth": 3})
+    net = Weights(name="n", features=keys, w_early={"best_target": 1.0},
+                  w_late={"best_target": 1.0}, lam=0.0,
+                  params={"ttc_depth": 3, "kappa": 0.5})
+    assert evaluate(g, g, 0, gross, UNIT)[1]["best_target"] == pytest.approx(10.0)
+    assert evaluate(g, g, 0, net, UNIT)[1]["best_target"] == pytest.approx(8.0)
 
 
 # --------------------------------------------------------------------------

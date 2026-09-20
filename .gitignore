@@ -30,6 +30,9 @@ results/**
 !results/
 !results/**/
 !results/*.md
+# The measurement files REPORT.md is generated from. Without these a
+# fresh clone cannot regenerate the report or check a number in it.
+!results/*.json
 !results/arena/**/summary.txt
 !results/arena/**/result.json
 !results/**/summary.json

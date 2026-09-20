@@ -40,6 +40,37 @@ SCALES_PATH = WEIGHTS_DIR / "feature_scales.json"
 
 DEFAULT_TTC_DEPTH = 3
 
+# Points deducted per yellow-equivalent of a golem's cost when pricing a
+# target. 0.0 reproduces the pre-fix `best_target` exactly, so every weight
+# file written before the fix still means what it meant; new ones set
+# `params.kappa`.
+#
+# WHY IT EXISTS. `best_target` used to be gross points over distance, which
+# credited the caravan twice: once through the `cry_*` features, and again
+# through the golem those same crystals could buy, priced as if it were free.
+# Claiming then read as a loss — it banked the points but destroyed the
+# duplicate credit, because paying the cost empties the caravan and sends TTC
+# on every remaining golem up. Measured over 154 skipped claims, `best_target`
+# fell 5.27 points on average against a mean gain of 0.61 in `golem_points`,
+# and the bot passed on 19.4% of claimable golems. Deducting the cost prices a
+# target at what it *nets*, so converting potential into points is no longer
+# self-defeating.
+DEFAULT_KAPPA = 0.0
+
+
+def net_points(card, kappa: float) -> float:
+    """A golem's points, less what its crystals cost, floored at zero.
+
+    Cost is measured in yellow-equivalents (`sim.YE`, 1/2/3/4) rather than in
+    tuned crystal weights, so the feature stays a pure function of the state
+    and does not move when the weights do. The floor matters: a golem whose
+    cost outruns its points is worth nothing as a target, not a penalty for
+    being on the row at all.
+    """
+    if not kappa:
+        return float(card.points)
+    return max(0.0, card.points - kappa * sim.ye_of(sim.cost_of(card)))
+
 
 # --------------------------------------------------------------------------
 # Ctx — per-state shared cache
@@ -53,11 +84,12 @@ class Ctx:
     the row the first time and nothing thereafter.
     """
 
-    __slots__ = ("game", "depth", "alpha", "beta",
+    __slots__ = ("game", "depth", "alpha", "beta", "kappa",
                  "_ttc", "_tp", "_best_target", "_opp_row_min")
 
     def __init__(self, game: Game, depth: int = DEFAULT_TTC_DEPTH,
-                 alpha: float = 1.0, beta: float = 1.0):
+                 alpha: float = 1.0, beta: float = 1.0,
+                 kappa: float = DEFAULT_KAPPA):
         self.game = game
         self.depth = depth
         # Exponents for `shaped_target` (brief feature #29). At 1.0/1.0 it is
@@ -65,6 +97,9 @@ class Ctx:
         # distance trade-off can be tuned rather than assumed.
         self.alpha = alpha
         self.beta = beta
+        # Points deducted per yellow-equivalent of a golem's price, so a
+        # target is valued at what it nets. See `net_points`.
+        self.kappa = kappa
         self._ttc: dict[int, list[Optional[float]]] = {}
         self._tp: dict[int, float] = {}
         self._best_target: dict[int, float] = {}
@@ -111,8 +146,8 @@ class Ctx:
         return got
 
     def best_target(self, pid: int) -> float:
-        """max over the row of points / (1 + TTC) — feature 7, cached because
-        opponent selection needs it as a tie-break."""
+        """max over the row of net points / (1 + TTC) — feature 7, cached
+        because opponent selection needs it as a tie-break."""
         got = self._best_target.get(pid)
         if got is None:
             row = self.ttc_row(pid)
@@ -120,7 +155,7 @@ class Ctx:
             for slot, pc in enumerate(self.game.point_row):
                 if pc is None:
                     continue
-                v = pc.points / (1.0 + row[slot])
+                v = net_points(pc, self.kappa) / (1.0 + row[slot])
                 if v > best:
                     best = v
             got = best
@@ -431,7 +466,8 @@ def evaluate(before: Game, after: Game, me: int, weights: Weights,
     if ctx is None:
         ctx = Ctx(after, weights.ttc_depth,
                   alpha=float(weights.params.get("alpha", 1.0)),
-                  beta=float(weights.params.get("beta", 1.0)))
+                  beta=float(weights.params.get("beta", 1.0)),
+                  kappa=float(weights.params.get("kappa", DEFAULT_KAPPA)))
     w = weights.effective(phase_of(after))
     keys = weights.features
 
@@ -680,7 +716,7 @@ def f_shaped_target(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
     for slot, pc in enumerate(after.point_row):
         if pc is None:
             continue
-        v = (pc.points ** a) / ((1.0 + row[slot]) ** b)
+        v = (net_points(pc, ctx.kappa) ** a) / ((1.0 + row[slot]) ** b)
         if v > best:
             best = v
     return best
@@ -775,7 +811,7 @@ def f_denial(before: Game, after: Game, pid: int, ctx: Ctx) -> float:
             if pc is not None and pc not in after.point_row]
     if not gone:
         return 0.0
-    before_ctx = Ctx(before, ctx.depth)
+    before_ctx = Ctx(before, ctx.depth, ctx.alpha, ctx.beta, ctx.kappa)
     theirs = before_ctx.best_opponent_ttc_row(pid)
     total = 0.0
     for slot, pc in enumerate(before.point_row):
