@@ -177,7 +177,18 @@ class Rest:
 class Claim:
     row_index: int  # which point card in the row
 
-Action = PlayCrystal | PlayUpgrade | PlayTrade | Acquire | Rest | Claim
+@dataclass(frozen=True)
+class Discard:
+    """Crystals thrown away to get back under the caravan limit.
+
+    A sub-decision, not a turn: it resolves the move that overflowed, and the
+    turn does not pass until it does. Only ever legal on a game built with
+    `discard_choice=True`, and only while one is pending. `counts` is indexed
+    by Crystal, like a caravan.
+    """
+    counts: tuple[int, int, int, int]
+
+Action = PlayCrystal | PlayUpgrade | PlayTrade | Acquire | Rest | Claim | Discard
 
 
 class IllegalAction(Exception):
@@ -194,7 +205,8 @@ class Game:
 
     def __init__(self, player_names: list[str], seed: Optional[int] = None, log: bool = False,
                  merchant_deck: Optional[list[MerchantCard]] = None,
-                 point_deck: Optional[list[PointCard]] = None):
+                 point_deck: Optional[list[PointCard]] = None,
+                 discard_choice: bool = False):
         # The printed game is 2–5 players. One player is also allowed, for the
         # solo solver (solver handover §Goal): a single seat racing the clock
         # to win_target golems, with no opponent. Nothing else in the engine
@@ -232,6 +244,20 @@ class Game:
         # Crystals the caravan limit dropped on the most recent action, as
         # per-color counts (see _enforce_caravan_limit). Reset every action.
         self.last_discard: list[int] = [0, 0, 0, 0]
+
+        # Over-limit discard: by the real rules the player CHOOSES what to
+        # throw away, but the engine has always dropped the cheapest first.
+        # `discard_choice=True` surfaces the choice as a sub-decision instead
+        # (see _enforce_caravan_limit). It is opt-in and defaults to the old
+        # behaviour on purpose: the multiplayer server and UI have no way to
+        # prompt for the choice yet, so switching the default would break a
+        # working game. The solo solver opts in, because "drop the cheapest"
+        # throws away the yellow that pays for acquisitions and can make an
+        # otherwise-optimal line look slower than it is.
+        self.discard_choice = discard_choice
+        # When a choice is owed: how many crystals the player must drop.
+        # None the rest of the time. The turn does not pass while it is set.
+        self.pending_discard: Optional[int] = None
 
         self._setup()
 
@@ -314,6 +340,8 @@ class Game:
         g._merchant_source = self._merchant_source
         g._point_source = self._point_source
         g.last_discard = self.last_discard[:]
+        g.discard_choice = self.discard_choice
+        g.pending_discard = self.pending_discard
 
         players = []
         for p in self.players:
@@ -374,6 +402,12 @@ class Game:
             return []
         acts: list[Action] = []
         p = self.player
+
+        # A pending discard blocks everything else — see apply_action. Every
+        # distinct choice leaves a distinct caravan, so there is nothing for
+        # `pruned` to collapse here.
+        if self.pending_discard is not None:
+            return list(self._discard_options(p, self.pending_discard))
 
         # --- Play ---
         for i, card in enumerate(p.hand):
@@ -588,7 +622,15 @@ class Game:
         caravan_before = p.caravan[:] if self.log else None
         self.last_discard = [0, 0, 0, 0]
 
-        if isinstance(action, PlayCrystal):
+        # While a discard is owed the turn is frozen mid-move: the only thing
+        # that may happen next is the discard itself.
+        if validate and self.pending_discard is not None and not isinstance(action, Discard):
+            raise IllegalAction(
+                f"must discard {self.pending_discard} crystal(s) before acting")
+
+        if isinstance(action, Discard):
+            action_type, info = "Discard", self._discard(p, action, validate)
+        elif isinstance(action, PlayCrystal):
             action_type, info = "PlayCrystal", self._play_crystal(p, action, validate)
         elif isinstance(action, PlayUpgrade):
             action_type, info = "PlayUpgrade", self._play_upgrade(p, action, validate)
@@ -608,7 +650,12 @@ class Game:
         if self.log:
             self._log_action(acting_seat, action_type, info, caravan_before, p.caravan)
 
-        self._advance_turn()
+        # A move that overflowed the caravan has not finished: the same player
+        # still owes a Discard, so the turn does not pass. Unreachable unless
+        # discard_choice is on — _enforce_caravan_limit resolves it itself
+        # otherwise, and pending_discard stays None.
+        if self.pending_discard is None:
+            self._advance_turn()
 
         if self.log and self.game_over:
             self._log_game_over()
@@ -753,16 +800,61 @@ class Game:
             self.point_tokens[1] = []
 
     def _enforce_caravan_limit(self, p: Player) -> None:
-        # NOTE: player "chooses" which to drop; here we drop cheapest first.
-        # For a real UI/AI, surface this as a sub-decision instead.
-        # What got dropped is recorded in self.last_discard (per-color counts)
-        # for the acting player only — it is reset at the top of every action.
-        while p.total_crystals() > CARAVAN_LIMIT:
+        """Bring `p` back under the caravan limit, one way or the other.
+
+        With `discard_choice=False` (the default, and what the multiplayer
+        game has always done) the engine drops the cheapest crystals itself.
+        With it True, nothing is dropped here: the overflow is recorded in
+        `pending_discard` and apply_action stops short of ending the turn,
+        leaving `legal_actions()` offering nothing but Discard.
+
+        What got dropped is recorded in self.last_discard (per-color counts)
+        for the acting player only — it is reset at the top of every action.
+        """
+        over = p.total_crystals() - CARAVAN_LIMIT
+        if over <= 0:
+            return
+        if self.discard_choice:
+            self.pending_discard = over
+            return
+        for _ in range(over):
             for c in range(4):
                 if p.caravan[c] > 0:
                     p.caravan[c] -= 1
                     self.last_discard[c] += 1
                     break
+
+    def _discard_options(self, p: Player, k: int) -> Iterator[Discard]:
+        """Every way to throw away exactly `k` crystals from p's caravan.
+
+        Small: `k` is the overflow, rarely more than two or three, and there
+        are only four colors — at k=3 with a full caravan that is 20 options.
+        """
+        for y in range(min(k, p.caravan[0]) + 1):
+            for g in range(min(k - y, p.caravan[1]) + 1):
+                for t in range(min(k - y - g, p.caravan[2]) + 1):
+                    m = k - y - g - t
+                    if 0 <= m <= p.caravan[3]:
+                        yield Discard((y, g, t, m))
+
+    def _discard(self, p: Player, a: Discard, validate: bool = True) -> dict:
+        """Resolve a pending over-limit discard with the player's own choice."""
+        counts = a.counts
+        if validate:
+            if self.pending_discard is None:
+                raise IllegalAction("no discard is pending")
+            if len(counts) != 4 or any(k < 0 for k in counts):
+                raise IllegalAction("discard counts must be four non-negative numbers")
+            if sum(counts) != self.pending_discard:
+                raise IllegalAction(
+                    f"must discard exactly {self.pending_discard}, not {sum(counts)}")
+            if any(counts[c] > p.caravan[c] for c in range(4)):
+                raise IllegalAction("cannot discard crystals you do not have")
+        for c in range(4):
+            p.caravan[c] -= counts[c]
+            self.last_discard[c] += counts[c]
+        self.pending_discard = None
+        return {"counts": list(counts)}
 
     def _advance_turn(self) -> None:
         last = (self.current + 1) % self.n == 0  # about to wrap to player 0

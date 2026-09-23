@@ -33,6 +33,7 @@ from century_engine import (  # noqa: E402
     Claim,
     Crystal,
     CrystalCard,
+    Discard,
     Game,
     IllegalAction,
     MerchantCard,
@@ -53,7 +54,7 @@ from century_cards import MERCHANT_CARDS, POINT_CARDS, STARTING_CARDS  # noqa: E
 
 __all__ = [
     "CARAVAN_LIMIT", "Acquire", "Action", "Claim", "Crystal", "CrystalCard",
-    "Game", "IllegalAction", "MERCHANT_CARDS", "MerchantCard", "POINT_CARDS",
+    "Discard", "Game", "IllegalAction", "MERCHANT_CARDS", "MerchantCard", "POINT_CARDS",
     "PlayCrystal", "PlayTrade", "PlayUpgrade", "Player", "PointCard", "Rest",
     "SAMPLE_MERCHANT_DECK", "SAMPLE_POINT_DECK", "STARTING_CARDS", "Token",
     "TradeCard", "UpgradeCard", "crystal_endgame_value",

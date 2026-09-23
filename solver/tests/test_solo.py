@@ -12,8 +12,8 @@ import random
 
 import pytest
 
-from bots._engine import Claim, Game
-from solver.solo import claimed, goal, new_solo_game
+from bots._engine import Claim, Discard, Game
+from solver.solo import claimed, goal, new_solo_game, turns_in
 
 # Random solo play is wasteful: measured over seeds 0-7 it takes 174-553
 # turns to stumble into six golems. The cap is well clear of that, and a
@@ -124,11 +124,26 @@ def test_random_solo_game_reaches_the_goal(seed):
 
 
 @pytest.mark.parametrize("seed", SEEDS)
+def test_turns_are_counted_without_the_discards(seed):
+    """Step 3 made the over-limit discard a sub-decision, so a plan can be
+    longer than the game is. `turns_in` is the number the search minimises;
+    `len(plan)` would over-count every turn that overflowed the caravan."""
+    game = new_solo_game(seed=seed)
+    actions = play_randomly(game, random.Random(seed))
+    discards = [a for a in actions if isinstance(a, Discard)]
+
+    assert discards, "seed never overflowed; this test would prove nothing"
+    assert turns_in(actions) == len(actions) - len(discards)
+    assert turns_in(actions) < len(actions)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
 def test_the_game_ends_on_the_claiming_turn(seed):
     """No trailing final round when there is nobody else to give a turn to.
 
-    This is what lets the search treat `len(plan)` as the turn count with no
-    correction: the last action of a solo game is always the winning Claim.
+    This is what lets the search treat `turns_in(plan)` as the turn count with
+    no correction: the last action of a solo game is always the winning Claim,
+    with no partial round after it to subtract.
     """
     game = new_solo_game(seed=seed)
     actions = play_randomly(game, random.Random(seed))
