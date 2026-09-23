@@ -195,8 +195,13 @@ class Game:
     def __init__(self, player_names: list[str], seed: Optional[int] = None, log: bool = False,
                  merchant_deck: Optional[list[MerchantCard]] = None,
                  point_deck: Optional[list[PointCard]] = None):
-        if not (2 <= len(player_names) <= 5):
-            raise ValueError("Century supports 2–5 players")
+        # The printed game is 2–5 players. One player is also allowed, for the
+        # solo solver (solver handover §Goal): a single seat racing the clock
+        # to win_target golems, with no opponent. Nothing else in the engine
+        # needs a special case — see _advance_turn for why the final round
+        # collapses correctly at n=1.
+        if not (1 <= len(player_names) <= 5):
+            raise ValueError("Century supports 1 (solo) to 5 players")
         # Deck sources, in precedence order: explicit argument, module-level
         # MERCHANT_DECK/POINT_DECK override, then the real compendium.
         _m, _p = _default_decks()
@@ -208,7 +213,9 @@ class Game:
         self.n = len(player_names)
         self.current = 0
         self.game_over = False
-        # end trigger: 6th point card in 2–3p, else 5th
+        # end trigger: 6th point card in 1–3p, else 5th. Solo deliberately
+        # takes the 2–3p target of 6, which is the goal the solver minimises
+        # turns to; it is not an accident of the `<= 3` test.
         self.win_target = 6 if self.n <= 3 else 5
         self._end_triggered = False
 
@@ -760,7 +767,10 @@ class Game:
     def _advance_turn(self) -> None:
         last = (self.current + 1) % self.n == 0  # about to wrap to player 0
         self.current = (self.current + 1) % self.n
-        # end after the round in which the trigger fired completes
+        # End after the round in which the trigger fired completes, so every
+        # player has had the same number of turns. At n=1 `current` is always
+        # 0, so the game ends the instant the solo player claims its target
+        # golem — which is exactly what "fewest turns" has to mean.
         if self._end_triggered and self.current == 0:
             self.game_over = True
 
