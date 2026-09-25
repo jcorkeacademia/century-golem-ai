@@ -52,9 +52,9 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Callable, Optional
 
-from bots._engine import Action, Discard, Game
+from bots._engine import Acquire, Action, Crystal, Discard, Game
 from solver.bound import h
 from solver.greedy import Plan, upper_bound, verify
 from solver.solo import new_solo_game, turns_in
@@ -94,6 +94,30 @@ def turn_cost(action: Action) -> int:
     return (0 if isinstance(action, Discard) else 1)
 
 
+Moves = Callable[[Game], list[Action]]
+
+
+def all_moves(game: Game) -> list[Action]:
+    """Every legal move. The default, and the only one that is exact."""
+    return game.legal_actions()
+
+
+def cheap_payments(game: Game) -> list[Action]:
+    """Every legal move, except acquires paid with any blue or magenta.
+
+    The user's rule: an acquire is only ever worth paying for in yellow and
+    green. It cuts the dominant cost — Acquire is ~73% of all moves, because
+    each payment mix is a separate move — to the yellow/green mixes only.
+
+    NOT proven safe. Paying green keeps yellow a trade might need, and a blue
+    paid onto a row card comes back if you later acquire that card. Whether
+    it ever loses the optimum is measured in solver.tiny, not assumed.
+    """
+    return [a for a in game.legal_actions()
+            if not (isinstance(a, Acquire)
+                    and any(c > Crystal.GREEN for c in a.payment))]
+
+
 def order(game: Game, actions: list[Action]) -> list[Action]:
     """Move ordering hook. Identity for now.
 
@@ -105,7 +129,8 @@ def order(game: Game, actions: list[Action]) -> list[Action]:
 
 
 def dfbb(game: Game, g: int, path: list[Action], best: dict, stats: Stats,
-         node_budget: Optional[int], deadline: Optional[float]) -> None:
+         node_budget: Optional[int], deadline: Optional[float],
+         moves: Moves = all_moves) -> None:
     """Recurse from `game`, having spent `g` turns along `path`.
 
     `best` holds the incumbent: {"turns": int, "actions": tuple}. Mutate it
@@ -117,6 +142,10 @@ def dfbb(game: Game, g: int, path: list[Action], best: dict, stats: Stats,
 
     Raise OutOfBudget when `stats.nodes` passes `node_budget` or the clock
     passes `deadline`.
+
+    `moves` lists the moves to try from a state. all_moves (every legal
+    move) is exact; anything narrower, like cheap_payments, is a speed-up
+    whose effect on the optimum has to be checked.
     """
     stats.nodes += 1
     if node_budget is not None and stats.nodes > node_budget:
@@ -131,7 +160,7 @@ def dfbb(game: Game, g: int, path: list[Action], best: dict, stats: Stats,
             stats.improved += 1
         return
 
-    for action in order(game, game.legal_actions()): #recursion stage
+    for action in order(game, moves(game)): #recursion stage
         child = game.clone() 
         child.apply_action(action)
 
@@ -139,13 +168,14 @@ def dfbb(game: Game, g: int, path: list[Action], best: dict, stats: Stats,
         if child_g + h(child) >= best["turns"]: #can't beat best
             stats.pruned += 1; continue #skip to next action, this action will not produce something better 
         path.append(action) #otherwise we explore deeper the branch deeper and look at all the possible actions/pruning from recursing on this node
-        dfbb(child, child_g, path, best, stats, node_budget, deadline) #when the call returns, the whole subtree has been explored
+        dfbb(child, child_g, path, best, stats, node_budget, deadline, moves) #when the call returns, the whole subtree has been explored
         path.pop() #remove the path so it can go to how it was and now we can explore the sibling
 
 
 
 def solve(seed: int, node_budget: Optional[int] = None,
-          time_limit: Optional[float] = None) -> Result:
+          time_limit: Optional[float] = None,
+          moves: Moves = all_moves) -> Result:
     """Fewest turns to win on this seed.
 
         1. Get the starting plan and b from upper_bound(seed).
@@ -168,7 +198,8 @@ def solve(seed: int, node_budget: Optional[int] = None,
     #    still a real plan, it just is not proven optimal.
     optimal = True
     try:
-        dfbb(new_solo_game(seed=seed), 0, [], best, stats, node_budget, deadline)
+        dfbb(new_solo_game(seed=seed), 0, [], best, stats, node_budget,
+             deadline, moves)
     except OutOfBudget:
         optimal = False
 
