@@ -164,6 +164,10 @@ def test_handover_worked_example(monkeypatch):
     monkeypatch.setattr(bound, "_facts",
                         lambda c: (c, Crystal.MAGENTA, (10, 10, 10, 10)))
     monkeypatch.setattr(bound, "value", lambda counts, cap=None: 10)
+    # The handover's single G_max of 10 applies to both bounds. Patching
+    # g_play also stops it computing — and caching, for every later test —
+    # its per-card table while `value` is faked.
+    monkeypatch.setattr(bound, "g_play", lambda cap=None: 10)
 
     game = new_solo_game(seed=0)
     game.players[0].point_cards = [game.point_row[0], game.point_row[1]]
@@ -211,10 +215,11 @@ def test_h_never_exceeds_the_turns_actually_remaining(seed):
             spent += 1
 
 
-def test_h_is_currently_weak_and_we_know_it():
+def test_h_building_term_baseline():
     """Documents where the bound stands, so a future tightening has a
-    baseline to beat. G_max is 40 while magenta golems remain, and golems
-    cost 8-17, so the building term is almost always 1."""
+    baseline to beat. With only the caravan bound (G_max 40) the building
+    term was 0-2. The potential bound (g_play 10) lifted it to 0-5 over a
+    greedy game; this fails if a change quietly loses that."""
     game = new_solo_game(seed=0)
     rng = random.Random(0)
     greedy = GreedyBot(seed=0)
@@ -223,7 +228,8 @@ def test_h_is_currently_weak_and_we_know_it():
         claims_left = game.win_target - len(game.players[0].point_cards)
         seen.add(h(game) - claims_left)
         game.apply_action(greedy.choose(game) or rng.choice(game.legal_actions()))
-    assert seen <= {0, 1, 2}, f"building term moved off 0-2: {sorted(seen)}"
+    assert max(seen) >= 4, f"building term only reached {max(seen)}"
+    assert seen <= set(range(7)), f"building term jumped: {sorted(seen)}"
 
 
 # ---------------------------------------------------------------------------
@@ -247,7 +253,15 @@ def _reference_h(game):
     cheapest = sorted(value(cost_of(c), cap) for c in remaining)[:claims_left]
     deficit = max(0, sum(cheapest) - value(player.caravan, cap))
     per_turn = CARAVAN_LIMIT * max(crystal_values(cap))
-    return claims_left + (deficit + per_turn - 1) // per_turn
+    by_caravan = (deficit + per_turn - 1) // per_turn
+
+    # The step-8 potential bound, written out longhand.
+    vals = crystal_values(cap)
+    pot = value(player.caravan, cap) + sum(
+        n * vals[c] for rc in game.row_crystals for c, n in rc.items())
+    gp = bound.g_play(cap)
+    by_potential = (max(0, sum(cheapest) - pot) + gp - 1) // gp
+    return claims_left + max(by_caravan, by_potential)
 
 
 @pytest.mark.parametrize("seed", range(8))
@@ -266,4 +280,77 @@ def test_cap_for_unaffected_when_the_deck_empties():
     game = new_solo_game(seed=0)
     game.point_row, game.point_deck = [None] * 5, []
     assert cap_for(game) == Crystal.YELLOW
+    assert h(game) == _reference_h(game)
+
+
+# ---------------------------------------------------------------------------
+# Step 8: the potential bound
+# ---------------------------------------------------------------------------
+
+from bots._engine import Acquire, Claim, Rest  # noqa: E402
+from bots.bots import RandomBot  # noqa: E402
+from solver.bound import g_play, play_gain, potential  # noqa: E402
+
+
+def test_play_gain_honours_the_limit_on_the_way_out():
+    """1B->1G4Y 'nets +30' by the old formula (net 3 x 10 repeats), but ten
+    repeats make 50 crystals and only 10 can be kept."""
+    card = named("1B->1G4Y")
+    assert card_gain(card) == 30
+    assert play_gain(card) < 30
+    assert play_gain(card) <= g_play()
+
+
+def test_the_best_card_play_adds_ten():
+    """Measured tight: trades like 4Y->3B reach exactly this in real play."""
+    assert g_play(Crystal.MAGENTA) == 10
+    assert play_gain(named("4Y->3B")) == 10
+
+
+def test_crystal_and_upgrade_cards_are_unchanged():
+    create = CrystalCard(((Crystal.YELLOW, 2),), "Create 2")
+    upgrade = UpgradeCard(2, "Upgrade 2")
+    for cap in range(4):
+        assert play_gain(create, cap) == card_gain(create, cap)
+        assert play_gain(upgrade, cap) == card_gain(upgrade, cap)
+
+
+def test_potential_counts_row_crystals_as_yours():
+    game = new_solo_game(seed=0)
+    base = potential(game)
+    game.row_crystals[2][Crystal.MAGENTA] += 1
+    assert potential(game) == base + 4
+
+
+@pytest.mark.parametrize("seed", range(6))
+def test_only_card_plays_raise_the_potential(seed):
+    """The lemma the bound rests on, checked on every turn of real games under
+    every cap: Acquire, Rest and Claim (after its cost) never raise the
+    potential, and a play never raises it by more than g_play. A discard
+    that follows a move is part of that move's turn."""
+    for bot in (GreedyBot(seed=seed), RandomBot(seed=seed)):
+        game = new_solo_game(seed=seed)
+        rng = random.Random(seed)
+        while not game.game_over:
+            action = bot.choose(game) or rng.choice(game.legal_actions())
+            before = [potential(game, cap) for cap in range(4)]
+            golem = game.point_row[action.row_index] if isinstance(action, Claim) else None
+            game.apply_action(action)
+            while game.pending_discard is not None:
+                game.apply_action(rng.choice(game.legal_actions()))
+            for cap in range(4):
+                change = potential(game, cap) - before[cap]
+                if golem is not None:
+                    change += value(cost_of(golem), cap)
+                limit = 0 if isinstance(action, (Acquire, Rest, Claim)) else g_play(cap)
+                assert change <= limit, (type(action).__name__, cap, change)
+
+
+def test_h_takes_the_larger_of_the_two_bounds():
+    """Crystals piled on the row raise the potential and can shrink the
+    potential bound below the caravan bound; h must not drop with it."""
+    game = new_solo_game(seed=0)
+    for rc in game.row_crystals:
+        rc[Crystal.MAGENTA] = 10
+    assert h(game) >= game.win_target
     assert h(game) == _reference_h(game)

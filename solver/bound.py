@@ -48,12 +48,14 @@ Two things to be careful about
 
 from __future__ import annotations
 
+import itertools
 from typing import Iterable, Optional, Sequence
 
 from bots._engine import (CARAVAN_LIMIT, MERCHANT_CARDS, STARTING_CARDS,
                           Crystal, CrystalCard, Game, MerchantCard, PointCard,
                           TradeCard, UpgradeCard)
-from bots.sim import YE, card_id, cost_of
+from bots.sim import YE, cost_of
+from solver.state import card_id   # cached; keys play_gain by card mechanics
 
 # A cap is a Crystal: the highest color worth anything in this state.
 CAP_NONE = Crystal.MAGENTA
@@ -249,10 +251,130 @@ def h(game: Game) -> int:
     cap = Crystal(max((f[1] for f in facts), default=0))   # same as cap_for
     cheapest = sorted(f[2][cap] for f in facts)[:claims_left]
 
-    # Overvaluing the caravan (some crystals are the wrong color to spend)
-    # only shrinks the deficit, which shrinks h. Safe direction.
-    deficit = max(0, sum(cheapest) - value(player.caravan, cap))
+    owed = sum(cheapest)
 
-    per_turn = g_max(cap)
-    building_turns = (deficit + per_turn - 1) // per_turn   # ceil, in ints
-    return claims_left + building_turns
+    # Two valid bounds on the building turns; the larger is also valid.
+    #
+    # By the caravan (step 4): a turn cannot add more than a full caravan is
+    # worth, g_max. Overvaluing the caravan (some crystals are the wrong
+    # colour to spend) only shrinks the deficit, which shrinks h: safe.
+    by_caravan = _ceil_div(max(0, owed - value(player.caravan, cap)), g_max(cap))
+
+    # By potential (step 8): count crystals on the row as yours, so Acquire
+    # stops counting as a gain and only card plays can grow the total — each
+    # by at most g_play. See potential().
+    by_potential = _ceil_div(max(0, owed - potential(game, cap)), g_play(cap))
+
+    return claims_left + max(by_caravan, by_potential)
+
+
+def _ceil_div(a: int, b: int) -> int:
+    return (a + b - 1) // b
+
+
+# ---------------------------------------------------------------------------
+# Step 8: the potential bound
+# ---------------------------------------------------------------------------
+# Why h was weak: g_max is 40, set by what a caravan can HOLD, because Acquire
+# can pick up any number of crystals piled on a row card. Real turns add ~3-5
+# value, so an opening deficit of ~70 became "2 building turns".
+#
+# The fix is to measure progress by the potential
+#
+#       potential = value(caravan) + value of every crystal on the row
+#
+# and look at what each kind of turn does to it:
+#
+#   Acquire   0. Payment moves crystals caravan -> row cards; pickup moves a
+#             card's crystals row -> caravan (engine _acquire). Nothing is
+#             created. A discard afterwards can only lower it.
+#   Rest      0.
+#   Claim     spends the golem's cost. That is what `owed` accounts for.
+#   Play      at most g_play(cap): the best a single card play can add once
+#             the 10-crystal limit is honoured on the way OUT (the discard
+#             that follows is part of the same turn). The old formula
+#             credited up to 30 for trades whose output cannot be kept.
+#
+# So only card plays grow the potential, and every golem still owed has to
+# be paid out of it: building turns >= ceil((owed - potential) / g_play).
+#
+# Counting row crystals as yours overstates what you can spend — you would
+# have to acquire the card first — which shrinks the deficit and h. Safe.
+#
+# SOLO ONLY: with opponents, their acquires put crystals on the row and the
+# potential would grow without you playing a card.
+
+def potential(game: Game, cap: Crystal = CAP_NONE) -> int:
+    """Value of the caravan plus every crystal sitting on the merchant row."""
+    total = value(game.players[0].caravan, cap)
+    vals = crystal_values(cap)
+    for rc in game.row_crystals:
+        for colour, n in rc.items():
+            total += n * vals[colour]
+    return total
+
+
+def _keep_best(counts: list[int]) -> list[int]:
+    """What survives the caravan limit if you discard the cheapest first —
+    the best case, which is what an upper bound on gain needs."""
+    extra = sum(counts) - CARAVAN_LIMIT
+    if extra <= 0:
+        return counts
+    counts = counts[:]
+    for colour in range(4):
+        drop = min(extra, counts[colour])
+        counts[colour] -= drop
+        extra -= drop
+    return counts
+
+
+# Every caravan a turn can start with: at most CARAVAN_LIMIT crystals, since
+# any overflow is discarded before the turn ends. 1,001 of them.
+_START_CARAVANS = [c for c in itertools.product(range(CARAVAN_LIMIT + 1), repeat=4)
+                   if sum(c) <= CARAVAN_LIMIT]
+
+
+def play_gain(card: MerchantCard, cap: Crystal = CAP_NONE) -> int:
+    """The most one turn playing `card` can add to the potential, exactly.
+
+    Crystal card: value of what it makes. Overflowing only loses value, so
+    the best case is room to spare.
+    Upgrade card: card_gain's steps x best step — each step moves one crystal
+    one rung, and a discard never follows (the count does not change).
+    Trade card: every starting caravan x every legal repeat count, keeping the
+    best ten afterwards. Never more than card_gain's (net x repeats), and far
+    less for trades that make more crystals than they consume.
+    """
+    k = (card_id(card), int(cap))
+    got = _PLAY_GAIN.get(k)
+    if got is not None:
+        return got
+    if not isinstance(card, TradeCard):
+        got = card_gain(card, cap)
+    else:
+        cost, gain = _as_counts(card.cost), _as_counts(card.gain)
+        got = 0
+        for start in _START_CARAVANS:
+            before = value(start, cap)
+            reps = min(start[c] // cost[c] for c in range(4) if cost[c])
+            for r in range(1, reps + 1):
+                after = [start[c] - r * cost[c] + r * gain[c] for c in range(4)]
+                got = max(got, value(_keep_best(after), cap) - before)
+    _PLAY_GAIN[k] = got
+    return got
+
+
+_PLAY_GAIN: dict[tuple[int, int], int] = {}
+_G_PLAY: dict[int, int] = {}
+
+
+def g_play(cap: Crystal = CAP_NONE) -> int:
+    """The most any single card play can add to the potential, at this cap.
+    Over the whole compendium plus the starting cards, as g_max is."""
+    got = _G_PLAY.get(int(cap))
+    if got is None:
+        got = max(play_gain(c, cap)
+                  for c in list(MERCHANT_CARDS) + list(STARTING_CARDS))
+        assert got > 0, "no card can add value: every deficit would be infinite"
+        _G_PLAY[int(cap)] = got
+    return got
