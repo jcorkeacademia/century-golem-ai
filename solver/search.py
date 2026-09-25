@@ -57,6 +57,7 @@ from typing import Callable, Optional
 from bots._engine import (Acquire, Action, Claim, Crystal, Discard, Game,
                           PlayCrystal, PlayTrade, PlayUpgrade, Rest)
 from solver.bound import h
+from solver.fastclone import fast_clone
 from solver.greedy import Plan, upper_bound, verify
 from solver.solo import new_solo_game, turns_in
 from solver.state import key
@@ -199,7 +200,7 @@ def dfbb(game: Game, g: int, path: list[Action], best: dict, stats: Stats,
     if ordering is not None:
         actions = ordering(game, actions)
     for action in order(game, actions): #recursion stage
-        child = game.clone()
+        child = fast_clone(game)  # Game.clone() minus ~9us of waste; see solver.fastclone
         child.apply_action(action)
 
         child_g = g + turn_cost(action) #number of steps it takes to get to a child
