@@ -168,6 +168,10 @@ def test_handover_worked_example(monkeypatch):
     # g_play also stops it computing — and caching, for every later test —
     # its per-card table while `value` is faked.
     monkeypatch.setattr(bound, "g_play", lambda cap=None: 10)
+    # The handover's arithmetic has no notion of buying cards or resting, so
+    # the engine bound is switched off here — which also stops it building
+    # and caching its per-card table from the fake `value`.
+    monkeypatch.setattr(bound, "engine_turns", lambda *args, **kw: 0)
 
     game = new_solo_game(seed=0)
     game.players[0].point_cards = [game.point_row[0], game.point_row[1]]
@@ -218,8 +222,9 @@ def test_h_never_exceeds_the_turns_actually_remaining(seed):
 def test_h_building_term_baseline():
     """Documents where the bound stands, so a future tightening has a
     baseline to beat. With only the caravan bound (G_max 40) the building
-    term was 0-2. The potential bound (g_play 10) lifted it to 0-5 over a
-    greedy game; this fails if a change quietly loses that."""
+    term was 0-2; the potential bound (g_play 10) lifted it to 0-5, and the
+    engine bound (buying cards and resting cost turns) to 0-8 over a greedy
+    game. This fails if a change quietly loses that."""
     game = new_solo_game(seed=0)
     rng = random.Random(0)
     greedy = GreedyBot(seed=0)
@@ -228,8 +233,9 @@ def test_h_building_term_baseline():
         claims_left = game.win_target - len(game.players[0].point_cards)
         seen.add(h(game) - claims_left)
         game.apply_action(greedy.choose(game) or rng.choice(game.legal_actions()))
-    assert max(seen) >= 4, f"building term only reached {max(seen)}"
-    assert seen <= set(range(7)), f"building term jumped: {sorted(seen)}"
+    # caravan bound alone: 0-2; + potential bound: 0-5; + engine bound: 0-8
+    assert max(seen) >= 6, f"building term only reached {max(seen)}"
+    assert seen <= set(range(10)), f"building term jumped: {sorted(seen)}"
 
 
 # ---------------------------------------------------------------------------
@@ -260,8 +266,10 @@ def _reference_h(game):
     pot = value(player.caravan, cap) + sum(
         n * vals[c] for rc in game.row_crystals for c, n in rc.items())
     gp = bound.g_play(cap)
-    by_potential = (max(0, sum(cheapest) - pot) + gp - 1) // gp
-    return claims_left + max(by_caravan, by_potential)
+    deficit = max(0, sum(cheapest) - pot)
+    by_potential = (deficit + gp - 1) // gp
+    by_engine = bound.engine_turns(player.hand, player.played, deficit, cap)
+    return claims_left + max(by_caravan, by_potential, by_engine)
 
 
 @pytest.mark.parametrize("seed", range(8))
@@ -354,3 +362,74 @@ def test_h_takes_the_larger_of_the_two_bounds():
         rc[Crystal.MAGENTA] = 10
     assert h(game) >= game.win_target
     assert h(game) == _reference_h(game)
+
+
+# ---------------------------------------------------------------------------
+# Step 8: the engine bound
+# ---------------------------------------------------------------------------
+
+import functools  # noqa: E402
+from solver.bound import _engine_turns, engine_turns  # noqa: E402
+
+
+def _brute_engine_turns(hand, played, deficit, pool, horizon=14):
+    """The same relaxed model, solved the slow obvious way: breadth-first
+    over (turns, cards in hand, cards in the played pile, bought so far,
+    gained so far). Independent of the DP it checks."""
+    start = (tuple(sorted(hand)), tuple(sorted(played)), 0, 0)
+    layer = {start}
+    for turns in range(horizon + 1):
+        if any(gained >= deficit for _, _, _, gained in layer):
+            return turns
+        nxt = set()
+        for hnd, pld, bought, gained in layer:
+            if bought < len(pool):                       # acquire the next best
+                nxt.add((tuple(sorted(hnd + (pool[bought],))), pld, bought + 1, gained))
+            if pld:                                      # rest
+                nxt.add((tuple(sorted(hnd + pld)), (), bought, gained))
+            for i, g in enumerate(hnd):                  # play one card
+                rest_hand = hnd[:i] + hnd[i + 1:]
+                nxt.add((rest_hand, tuple(sorted(pld + (g,))), bought,
+                         min(deficit, gained + g)))
+        layer = nxt
+    return None
+
+
+@pytest.mark.parametrize("seed", range(40))
+def test_engine_dp_matches_a_brute_force_of_the_same_model(seed):
+    rng = random.Random(seed)
+    pool = tuple(sorted((rng.randint(0, 10) for _ in range(5)), reverse=True))
+    hand = tuple(rng.randint(0, 4) for _ in range(rng.randint(0, 3)))
+    played = tuple(rng.randint(0, 6) for _ in range(rng.randint(0, 2)))
+    deficit = rng.randint(1, 30)
+    want = _brute_engine_turns(hand, played, deficit, pool)
+    got = _engine_turns(tuple(sorted(hand, reverse=True)),
+                        tuple(sorted(played, reverse=True)), deficit, pool)
+    if want is None:
+        assert got > 14
+    else:
+        assert got == want
+
+
+def test_engine_opening_example():
+    """Hand Create 2 + Upgrade 2 (2 each), deficit 42, best cards worth 10:
+    buy two 10s, play both, Rest, play both again and one 2 — 2 + 2 + 1 +
+    3 = 8 turns. The potential bound said ceil(42 / 10) = 5."""
+    assert _engine_turns((2, 2), (), 42, (10, 10, 10, 10, 10, 9)) == 8
+
+
+def test_played_cards_need_a_rest_first():
+    # the only card is in the played pile: rest then play, or buy and play
+    assert _engine_turns((), (10,), 10, (10,)) == 2
+    assert _engine_turns((), (10,), 10, ()) == 2      # rest, play
+
+
+def test_engine_bound_never_below_the_potential_bound():
+    game = new_solo_game(seed=3)
+    p = game.players[0]
+    for deficit in range(0, 80, 7):
+        assert engine_turns(p.hand, p.played, deficit) >= -(-deficit // bound.g_play())
+
+
+def test_opening_h_rises_to_fourteen():
+    assert h(new_solo_game(seed=0)) == 14

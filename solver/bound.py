@@ -263,9 +263,16 @@ def h(game: Game) -> int:
     # By potential (step 8): count crystals on the row as yours, so Acquire
     # stops counting as a gain and only card plays can grow the total — each
     # by at most g_play. See potential().
-    by_potential = _ceil_div(max(0, owed - potential(game, cap)), g_play(cap))
+    deficit = max(0, owed - potential(game, cap))
+    by_potential = _ceil_div(deficit, g_play(cap))
 
-    return claims_left + max(by_caravan, by_potential)
+    # By engine (step 8): the same deficit, but charging for the cards you
+    # would have to buy and the Rests you would have to take. See
+    # engine_turns().
+    player_cards = player.hand, player.played
+    by_engine = engine_turns(player_cards[0], player_cards[1], deficit, cap)
+
+    return claims_left + max(by_caravan, by_potential, by_engine)
 
 
 def _ceil_div(a: int, b: int) -> int:
@@ -378,3 +385,110 @@ def g_play(cap: Crystal = CAP_NONE) -> int:
         assert got > 0, "no card can add value: every deficit would be infinite"
         _G_PLAY[int(cap)] = got
     return got
+
+
+# ---------------------------------------------------------------------------
+# Step 8: the engine bound
+# ---------------------------------------------------------------------------
+# by_potential assumes every building turn is a play by the best card in the
+# game. Two things make that impossible, and both cost turns that add nothing
+# to the potential:
+#
+#   - You can only play cards you own. At the start that is Create 2 and
+#     Upgrade 2, worth at most 2 a play. Anything better has to be acquired
+#     first, and an Acquire adds 0.
+#   - A played card is gone until a Rest, which adds 0. Before the next
+#     Rest, only cards in HAND (plus anything acquired) can be played — not
+#     the ones already in the played pile.
+#
+# Relaxed model, every relaxation in the player's favour so the result can
+# only undercount (admissible):
+#   * any card in the compendium can be acquired, in one turn, at no cost,
+#     and all acquires happen first — so buying `a` cards means adding the
+#     `a` best play gains in the game (owned or not: counting a card twice is
+#     generous, hence safe);
+#   * every play gains its card's best single-play gain, play_gain, whatever
+#     the caravan actually holds;
+#   * claims, discards and payment costs are ignored (claims are counted
+#     separately as claims_left; the others never raise the potential).
+#
+# Then: fewest acquire + play + Rest turns whose plays can total the deficit,
+# minimised over how many cards to buy. The first cycle plays from hand
+# (+ bought cards), each later cycle is one Rest plus plays from everything
+# owned, each card at most once per cycle.
+
+_POOL: dict[int, tuple[int, ...]] = {}          # cap -> every card's gain, best first
+_ENGINE_CACHE: dict[tuple, int] = {}
+_ENGINE_CACHE_LIMIT = 500_000
+_NEVER = 10 ** 6
+
+
+def _pool(cap: Crystal) -> tuple[int, ...]:
+    got = _POOL.get(int(cap))
+    if got is None:
+        got = tuple(sorted((play_gain(c, cap) for c in
+                            list(MERCHANT_CARDS) + list(STARTING_CARDS)),
+                           reverse=True))
+        _POOL[int(cap)] = got
+    return got
+
+
+def engine_turns(hand: Sequence[MerchantCard], played: Sequence[MerchantCard],
+                 deficit: int, cap: Crystal = CAP_NONE) -> int:
+    """Fewest non-claim turns that could raise the potential by `deficit`,
+    charging for acquires and Rests. Never an overestimate (see above)."""
+    if deficit <= 0:
+        return 0
+    hand_gains = tuple(sorted((play_gain(c, cap) for c in hand), reverse=True))
+    played_gains = tuple(sorted((play_gain(c, cap) for c in played), reverse=True))
+    k = (hand_gains, played_gains, deficit, int(cap))
+    got = _ENGINE_CACHE.get(k)
+    if got is None:
+        got = _engine_turns(hand_gains, played_gains, deficit, _pool(cap))
+        if len(_ENGINE_CACHE) >= _ENGINE_CACHE_LIMIT:
+            _ENGINE_CACHE.clear()
+        _ENGINE_CACHE[k] = got
+    return got
+
+
+def _engine_turns(hand: tuple[int, ...], played: tuple[int, ...], deficit: int,
+                  pool: tuple[int, ...]) -> int:
+    best = _NEVER
+    for bought in range(len(pool) + 1):
+        if bought >= best:                  # acquires alone already cost more
+            break
+        extra = pool[:bought]
+        first = sorted(hand + extra, reverse=True)           # before any Rest
+        every = sorted(hand + played + extra, reverse=True)  # after a Rest
+        turns = _turns_to_gain(first, every, deficit, best - bought)
+        best = min(best, bought + turns)
+    return best
+
+
+def _turns_to_gain(first: list[int], every: list[int], deficit: int,
+                   limit: int) -> int:
+    """Fewest turns of plays and Rests whose plays total >= deficit: an
+    opening cycle from `first`, then cycles of one Rest + plays from
+    `every`, each card at most once per cycle. _NEVER if not within limit."""
+    pre_first = [0]
+    for g in first:
+        pre_first.append(pre_first[-1] + g)
+    pre_every = [0]
+    for g in every:
+        pre_every.append(pre_every[-1] + g)
+    if pre_every[-1] <= 0 and pre_first[-1] < deficit:
+        return _NEVER
+
+    # rested[t]: the most `t` turns can gain if they start with a Rest and
+    # consist of whole cycles (Rest + j plays).
+    rested = [0]
+    for t in range(1, limit + 1):
+        rested.append(max(
+            [rested[t - 1]] +
+            [pre_every[j] + rested[t - 1 - j]
+             for j in range(1, min(len(every), t - 1) + 1)]))
+        # t turns: the opening cycle takes j0 of them, the rest is rested
+        for j0 in range(0, min(len(first), t) + 1):
+            if pre_first[j0] + rested[t - j0] >= deficit:
+                return t
+    return _NEVER
