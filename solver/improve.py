@@ -4,7 +4,8 @@ DFBB's cost goes as branching^(b - h), and b from the bots is ~41 while h at
 the root is ~11. Proving a full-game optimum is out of reach (see
 HANDOFF_search_performance.md), so the target is a provable GAP per seed:
 
-    lower   h at the opening position (admissible, validated)
+    lower   the larger of h and the crystal-flow bound at the opening
+            (both admissible, both validated; see solver.flow)
     upper   the shortest plan any method finds, replayed to a real win
 
 Two methods here push the upper end down. Neither proves anything about the
@@ -38,6 +39,7 @@ from typing import Optional
 from bots._engine import Game
 from bots.features import Scales, Weights, evaluate
 from solver.bound import h
+from solver.flow import flow_bound
 from solver.fastclone import fast_clone
 from solver.greedy import Plan, _solo_scoring, upper_bound, verify
 from solver.search import (Moves, OutOfBudget, Stats, cheap_payments,
@@ -141,7 +143,7 @@ def beam(seed: int, width: int = 100, max_turns: int = 80,
 @dataclass
 class Gap:
     seed: int
-    lower: int                     # h at the opening
+    lower: int                     # max(h, flow bound) at the opening
     bots: int                      # step-5 incumbent
     beam: Optional[int]
     best: Plan                     # shortest verified plan of all
@@ -156,7 +158,8 @@ def gap_report(seed: int, width: int = 1000, repair_budget: int = 2_000) -> Gap:
     against the bots' 41, and repair added nothing on top of a wide beam's
     plan (its endings are already good) — so only the best plan is repaired,
     as a cheap last pass."""
-    lower = h(new_solo_game(seed=seed))
+    opening = new_solo_game(seed=seed)
+    lower = max(h(opening), flow_bound(opening))
     bots = upper_bound(seed)
     beamed = beam(seed, width)
     best = bots if beamed is None or bots.turns <= beamed.turns else beamed
