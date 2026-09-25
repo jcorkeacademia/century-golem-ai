@@ -159,8 +159,10 @@ def test_handover_worked_example(monkeypatch):
     """Two golems claimed, cheapest four remaining worth 40, caravan worth 10,
     G_max 10.  V = 30, building = 3, claims left = 4, h = 7."""
     monkeypatch.setattr(bound, "g_max", lambda cap, cards=None: 10)
-    monkeypatch.setattr(bound, "cap_for", lambda game: Crystal.MAGENTA)
-    monkeypatch.setattr(bound, "golem_value", lambda c, cap=None: 10)
+    # Every golem costs 10 on every scale, and needs magenta (so no capping).
+    # h reads golem prices through _facts since step 8 cached them.
+    monkeypatch.setattr(bound, "_facts",
+                        lambda c: (c, Crystal.MAGENTA, (10, 10, 10, 10)))
     monkeypatch.setattr(bound, "value", lambda counts, cap=None: 10)
 
     game = new_solo_game(seed=0)
@@ -222,3 +224,46 @@ def test_h_is_currently_weak_and_we_know_it():
         seen.add(h(game) - claims_left)
         game.apply_action(greedy.choose(game) or rng.choice(game.legal_actions()))
     assert seen <= {0, 1, 2}, f"building term moved off 0-2: {sorted(seen)}"
+
+
+# ---------------------------------------------------------------------------
+# Step 8: the cached h must equal the original, not merely be close
+# ---------------------------------------------------------------------------
+
+def _reference_h(game):
+    """h exactly as first written (step 4), before its golem facts were
+    cached. The fast version must agree with it on every position."""
+    player = game.players[0]
+    claims_left = game.win_target - len(player.point_cards)
+    if claims_left <= 0:
+        return 0
+    remaining = [c for c in game.point_row if c is not None] + game.point_deck
+    cap = Crystal.YELLOW
+    for card in remaining:
+        cost = cost_of(card)
+        for c in range(4):
+            if cost[c] > 0 and c > cap:
+                cap = Crystal(c)
+    cheapest = sorted(value(cost_of(c), cap) for c in remaining)[:claims_left]
+    deficit = max(0, sum(cheapest) - value(player.caravan, cap))
+    per_turn = CARAVAN_LIMIT * max(crystal_values(cap))
+    return claims_left + (deficit + per_turn - 1) // per_turn
+
+
+@pytest.mark.parametrize("seed", range(8))
+def test_cached_h_equals_the_original(seed):
+    from solver.tiny import fast_board
+    games = [new_solo_game(seed=seed), fast_board(seed).game()]
+    rng = random.Random(seed)
+    for game in games:
+        while not game.game_over:
+            assert h(game) == _reference_h(game)
+            game.apply_action(rng.choice(game.legal_actions()))
+        assert h(game) == _reference_h(game)
+
+
+def test_cap_for_unaffected_when_the_deck_empties():
+    game = new_solo_game(seed=0)
+    game.point_row, game.point_deck = [None] * 5, []
+    assert cap_for(game) == Crystal.YELLOW
+    assert h(game) == _reference_h(game)

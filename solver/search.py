@@ -54,10 +54,12 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
-from bots._engine import Acquire, Action, Crystal, Discard, Game
+from bots._engine import (Acquire, Action, Claim, Crystal, Discard, Game,
+                          PlayCrystal, PlayTrade, PlayUpgrade, Rest)
 from solver.bound import h
 from solver.greedy import Plan, upper_bound, verify
 from solver.solo import new_solo_game, turns_in
+from solver.state import key
 
 
 @dataclass
@@ -66,6 +68,7 @@ class Stats:
     nodes: int = 0          # states expanded
     pruned: int = 0         # children skipped because g + h >= b
     improved: int = 0       # times b went down
+    transposed: int = 0     # children skipped by the seen-state table
     started: float = field(default_factory=time.perf_counter)
 
     def elapsed(self) -> float:
@@ -118,6 +121,24 @@ def cheap_payments(game: Game) -> list[Action]:
                     and any(c > Crystal.GREEN for c in a.payment))]
 
 
+def claims_first(game: Game, actions: list[Action]) -> list[Action]:
+    """Try every Claim before anything else. A claim is the only move that
+    moves you toward the goal directly, so it finds short wins soonest."""
+    return sorted(actions, key=lambda a: not isinstance(a, Claim))
+
+
+# Lower runs first: claim, then the moves that make crystals, then buying
+# cards, then resting. Discards only ever appear on their own, so their rank
+# does not matter.
+_PRODUCE_RANK = {Claim: 0, PlayTrade: 1, PlayUpgrade: 1, PlayCrystal: 1,
+                 Acquire: 2, Rest: 3, Discard: 4}
+
+
+def produce_first(game: Game, actions: list[Action]) -> list[Action]:
+    """Claims, then crystal-making plays, then acquires, then Rest."""
+    return sorted(actions, key=lambda a: _PRODUCE_RANK[type(a)])
+
+
 def order(game: Game, actions: list[Action]) -> list[Action]:
     """Move ordering hook. Identity for now.
 
@@ -130,7 +151,9 @@ def order(game: Game, actions: list[Action]) -> list[Action]:
 
 def dfbb(game: Game, g: int, path: list[Action], best: dict, stats: Stats,
          node_budget: Optional[int], deadline: Optional[float],
-         moves: Moves = all_moves) -> None:
+         moves: Moves = all_moves, seen: Optional[dict] = None,
+         ordering: Optional[Callable[[Game, list[Action]], list[Action]]] = None
+         ) -> None:
     """Recurse from `game`, having spent `g` turns along `path`.
 
     `best` holds the incumbent: {"turns": int, "actions": tuple}. Mutate it
@@ -146,6 +169,18 @@ def dfbb(game: Game, g: int, path: list[Action], best: dict, stats: Stats,
     `moves` lists the moves to try from a state. all_moves (every legal
     move) is exact; anything narrower, like cheap_payments, is a speed-up
     whose effect on the optimum has to be checked.
+
+    Step-8 speed-ups, each off unless passed, so solver.bench can measure
+    them one at a time:
+
+    `seen`: a dict to use as the seen-state table, mapping solver.state.key
+    to the fewest turns that position has been reached with. A child reached
+    again with no fewer turns is skipped. Safe: the earlier visit either
+    searched everything below it with no more turns spent, or was pruned
+    under a b at least as large as today's, and b only ever falls.
+
+    `ordering`: sorts the moves before they are tried, so shorter wins turn
+    up sooner and b falls sooner. Safe: it changes the order, never the set.
     """
     stats.nodes += 1
     if node_budget is not None and stats.nodes > node_budget:
@@ -160,22 +195,36 @@ def dfbb(game: Game, g: int, path: list[Action], best: dict, stats: Stats,
             stats.improved += 1
         return
 
-    for action in order(game, moves(game)): #recursion stage
-        child = game.clone() 
+    actions = moves(game)
+    if ordering is not None:
+        actions = ordering(game, actions)
+    for action in order(game, actions): #recursion stage
+        child = game.clone()
         child.apply_action(action)
 
         child_g = g + turn_cost(action) #number of steps it takes to get to a child
+
+        if seen is not None:  # seen-state table: been here before, no slower?
+            k = key(child)
+            prev = seen.get(k)
+            if prev is not None and prev <= child_g:
+                stats.transposed += 1
+                continue
+            seen[k] = child_g
+
         if child_g + h(child) >= best["turns"]: #can't beat best
-            stats.pruned += 1; continue #skip to next action, this action will not produce something better 
+            stats.pruned += 1; continue #skip to next action, this action will not produce something better
         path.append(action) #otherwise we explore deeper the branch deeper and look at all the possible actions/pruning from recursing on this node
-        dfbb(child, child_g, path, best, stats, node_budget, deadline, moves) #when the call returns, the whole subtree has been explored
+        dfbb(child, child_g, path, best, stats, node_budget, deadline, moves,
+             seen, ordering) #when the call returns, the whole subtree has been explored
         path.pop() #remove the path so it can go to how it was and now we can explore the sibling
 
 
 
 def solve(seed: int, node_budget: Optional[int] = None,
           time_limit: Optional[float] = None,
-          moves: Moves = all_moves) -> Result:
+          moves: Moves = all_moves, seen_table: bool = True,
+          ordering: Optional[Callable] = claims_first) -> Result:
     """Fewest turns to win on this seed.
 
         1. Get the starting plan and b from upper_bound(seed).
@@ -198,8 +247,11 @@ def solve(seed: int, node_budget: Optional[int] = None,
     #    still a real plan, it just is not proven optimal.
     optimal = True
     try:
+        # The two SAFE step-8 speed-ups are on by default: they change how
+        # fast the answer is found, never what it is. The payment rule is a
+        # heuristic, so it stays opt-in via `moves`.
         dfbb(new_solo_game(seed=seed), 0, [], best, stats, node_budget,
-             deadline, moves)
+             deadline, moves, {} if seen_table else None, ordering)
     except OutOfBudget:
         optimal = False
 

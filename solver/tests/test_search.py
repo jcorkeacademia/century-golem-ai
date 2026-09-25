@@ -106,3 +106,57 @@ def test_a_finished_search_from_a_winnable_position_says_one_turn():
             assert best["turns"] == 1
             return
     pytest.skip("no one-turn finish on this seed")
+
+
+# ---------------------------------------------------------------------------
+# Step 8: the safe speed-ups change speed, never answers
+# ---------------------------------------------------------------------------
+
+from solver.search import cheap_payments, claims_first, produce_first  # noqa: E402
+from solver.tiny import brute_force, fast_board  # noqa: E402
+
+
+@pytest.mark.parametrize("seed", range(10))
+@pytest.mark.parametrize("speedups", [
+    {"seen": True},
+    {"ordering": claims_first},
+    {"ordering": produce_first},
+    {"seen": True, "ordering": claims_first},
+])
+def test_speedups_keep_the_optimum_from_a_loose_bound(seed, speedups):
+    """From b = 15 the search must find AND prove the optimum itself — the
+    realistic case, unlike step 7's b = optimum + 1."""
+    board = fast_board(seed)
+    truth = brute_force(board.game(), moves=cheap_payments)
+    kwargs = dict(speedups)
+    if kwargs.pop("seen", False):
+        kwargs["seen"] = {}
+    best = {"turns": 15, "actions": ()}
+    dfbb(board.game(), 0, [], best, Stats(), 200_000, None,
+         moves=cheap_payments, **kwargs)
+    assert best["turns"] == truth
+
+
+def test_seen_table_skips_repeated_positions_and_saves_nodes():
+    board = fast_board(1)
+    plain, table = Stats(), Stats()
+    for stats, seen in ((plain, None), (table, {})):
+        best = {"turns": 15, "actions": ()}
+        dfbb(board.game(), 0, [], best, stats, None, None,
+             moves=cheap_payments, seen=seen)
+    assert table.transposed > 0
+    assert table.nodes < plain.nodes
+
+
+def test_claims_first_puts_every_claim_first():
+    game = new_solo_game(seed=0)
+    game.players[0].caravan = [4, 3, 3, 0]
+    ordered = claims_first(game, game.legal_actions())
+    kinds = [type(a).__name__ == "Claim" for a in ordered]
+    assert any(kinds)
+    assert kinds == sorted(kinds, reverse=True), "no claim after a non-claim"
+
+
+def test_solve_uses_the_safe_speedups_by_default():
+    result = solve(0, node_budget=300)
+    assert result.stats.transposed > 0

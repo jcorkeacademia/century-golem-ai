@@ -42,7 +42,24 @@ from __future__ import annotations
 from typing import Optional, Sequence
 
 from bots._engine import Game, MerchantCard, PointCard
-from bots.sim import card_id
+from bots.sim import card_id as _card_id_uncached
+
+# Step-8 speed-up. key() runs on every child the search generates, and it was
+# rebuilding each card's mechanical signature (bots.sim.card_id) and each
+# golem's cost tuple on every call: ~14us a key, more than cloning the game.
+# Neither ever changes for a given card object, so both are remembered per
+# object. Keyed by id() for speed; the object is stored alongside and checked
+# with `is`, because an id can be reused once an object is garbage-collected.
+_CARD_IDS: dict[int, tuple] = {}
+_GOLEM_KEYS: dict[int, tuple] = {}
+
+
+def card_id(card: MerchantCard) -> int:
+    entry = _CARD_IDS.get(id(card))
+    if entry is None or entry[0] is not card:
+        entry = (card, _card_id_uncached(card))
+        _CARD_IDS[id(card)] = entry
+    return entry[1]
 
 # A key is a tuple of plain ints and tuples of ints: hashable, comparable,
 # and cheap to build. Typed loosely on purpose — the shape is documented by
@@ -68,8 +85,12 @@ def _point_key(card: Optional[PointCard]) -> tuple[int, ...]:
     """
     if card is None:
         return (-1,)
-    cost = card.cost_counter()
-    return tuple(cost.get(c, 0) for c in range(4))
+    entry = _GOLEM_KEYS.get(id(card))
+    if entry is None or entry[0] is not card:
+        cost = card.cost_counter()
+        entry = (card, tuple(cost.get(c, 0) for c in range(4)))
+        _GOLEM_KEYS[id(card)] = entry
+    return entry[1]
 
 
 def _hand_key(cards: Sequence[MerchantCard]) -> tuple[int, ...]:

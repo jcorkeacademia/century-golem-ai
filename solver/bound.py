@@ -183,15 +183,36 @@ def _g_max_over(cards: list[MerchantCard], cap: Crystal) -> int:
 
 
 
-def cap_for(game: Game) -> Crystal: #highest crystal in remaining deck
-    remaining = [c for c in game.point_row if c is not None] + game.point_deck #gives remaining deck
-    highest = Crystal.YELLOW
-    for card in remaining:
+# Step-8 speed-up. cap_for and h both need two facts about every remaining
+# golem — the highest colour it costs, and its price on each capped scale —
+# and neither ever changes for a given card, yet they were recomputed on
+# every call: ~50us of h's ~50us. So each card's facts are worked out once.
+#
+# Keyed by id(card) for speed (hashing the frozen dataclass itself costs more
+# than the work saved). Golem cards are long-lived shared objects, but an id
+# can be reused once an object dies, so the card is stored alongside and
+# checked with `is` before an entry is trusted.
+_GOLEM_FACTS: dict[int, tuple] = {}
+
+
+def _facts(card: PointCard) -> tuple:
+    """(card, highest colour it costs, its price at caps 0..3)."""
+    entry = _GOLEM_FACTS.get(id(card))
+    if entry is None or entry[0] is not card:
         cost = cost_of(card)
-        for c in range(4):
-            if cost[c] > 0 and c > highest:
-                highest = Crystal(c)
-    return highest
+        highest = max((c for c in range(4) if cost[c] > 0), default=0)
+        prices = tuple(value(cost, cap) for cap in range(4))
+        entry = (card, highest, prices)
+        _GOLEM_FACTS[id(card)] = entry
+    return entry
+
+
+def _remaining(game: Game) -> list:
+    return [c for c in game.point_row if c is not None] + game.point_deck
+
+
+def cap_for(game: Game) -> Crystal: #highest crystal in remaining deck
+    return Crystal(max((_facts(c)[1] for c in _remaining(game)), default=0))
 
                     
 
@@ -219,15 +240,14 @@ def h(game: Game) -> int:
     if claims_left <= 0:
         return 0
 
-    cap = cap_for(game)
-
     # The cheapest golems still gettable, priced on the capped scale. Read off
     # the whole remaining pool, not just the row: pricing only the five
     # visible ones could overstate what is owed, and an overstated h prunes
     # winning lines. Taking the cheapest is the same relaxation — you may be
     # forced into dearer golems, never cheaper ones.
-    remaining = [c for c in game.point_row if c is not None] + game.point_deck
-    cheapest = sorted(golem_value(c, cap) for c in remaining)[:claims_left]
+    facts = [_facts(c) for c in _remaining(game)]
+    cap = Crystal(max((f[1] for f in facts), default=0))   # same as cap_for
+    cheapest = sorted(f[2][cap] for f in facts)[:claims_left]
 
     # Overvaluing the caravan (some crystals are the wrong color to spend)
     # only shrinks the deficit, which shrinks h. Safe direction.
