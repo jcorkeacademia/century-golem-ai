@@ -233,14 +233,29 @@ def test_h_building_term_baseline():
         claims_left = game.win_target - len(game.players[0].point_cards)
         seen.add(h(game) - claims_left)
         game.apply_action(greedy.choose(game) or rng.choice(game.legal_actions()))
-    # caravan bound alone: 0-2; + potential bound: 0-5; + engine bound: 0-8
-    assert max(seen) >= 6, f"building term only reached {max(seen)}"
-    assert seen <= set(range(10)), f"building term jumped: {sorted(seen)}"
+    # caravan bound alone: 0-2; + potential: 0-5; + engine: 0-8;
+    # + board-aware golem pricing: 0-10
+    assert max(seen) >= 9, f"building term only reached {max(seen)}"
+    assert seen <= set(range(14)), f"building term jumped: {sorted(seen)}"
 
 
 # ---------------------------------------------------------------------------
 # Step 8: the cached h must equal the original, not merely be close
 # ---------------------------------------------------------------------------
+
+def _brute_schedule(items, k):
+    """Least total price over every set of k distinct golems that can fill
+    claims 1..k (claim i takes one with earliest <= i). Exhaustive and
+    obvious on purpose; independent of the matroid greedy it checks."""
+    import itertools
+    best = None
+    for combo in itertools.combinations(items, min(k, len(items))):
+        # a set can fill claims 1..k iff, earliest first, the i-th fits claim i
+        if all(w <= i + 1 for i, (_, w) in enumerate(sorted(combo, key=lambda t: t[1]))):
+            total = sum(price for price, _ in combo)
+            best = total if best is None or total < best else best
+    return best or 0
+
 
 def _reference_h(game):
     """h exactly as first written (step 4), before its golem facts were
@@ -249,14 +264,21 @@ def _reference_h(game):
     claims_left = game.win_target - len(player.point_cards)
     if claims_left <= 0:
         return 0
-    remaining = [c for c in game.point_row if c is not None] + game.point_deck
+    # Golems that can surface before the last claim, with the earliest claim
+    # each could fill: the row from claim 1, the m-th card drawn (from the END
+    # of the deck) from claim m + 1.
+    windows = [(c, 1) for c in game.point_row if c is not None]
+    for m in range(1, claims_left):
+        if m <= len(game.point_deck):
+            windows.append((game.point_deck[-m], m + 1))
     cap = Crystal.YELLOW
-    for card in remaining:
+    for card, _ in windows:
         cost = cost_of(card)
         for c in range(4):
             if cost[c] > 0 and c > cap:
                 cap = Crystal(c)
-    cheapest = sorted(value(cost_of(c), cap) for c in remaining)[:claims_left]
+    cheapest = [_brute_schedule(
+        [(value(cost_of(c), cap), w) for c, w in windows], claims_left)]
     deficit = max(0, sum(cheapest) - value(player.caravan, cap))
     per_turn = CARAVAN_LIMIT * max(crystal_values(cap))
     by_caravan = (deficit + per_turn - 1) // per_turn
@@ -431,5 +453,42 @@ def test_engine_bound_never_below_the_potential_bound():
         assert engine_turns(p.hand, p.played, deficit) >= -(-deficit // bound.g_play())
 
 
-def test_opening_h_rises_to_fourteen():
-    assert h(new_solo_game(seed=0)) == 14
+def test_opening_h_reads_the_board():
+    """Engine bound alone: 14 on every seed. Pricing only golems that can
+    surface makes the opening bound depend on the deal."""
+    opening = [h(new_solo_game(seed=s)) for s in range(10)]
+    assert opening == [16, 18, 16, 16, 16, 16, 15, 18, 18, 15]
+
+
+# ---------------------------------------------------------------------------
+# Step 8: board-aware golem pricing
+# ---------------------------------------------------------------------------
+
+from solver.bound import _cheapest_schedule, reachable_golems  # noqa: E402
+
+
+def test_reachable_golems_are_the_row_then_the_next_draws():
+    game = new_solo_game(seed=0)
+    got = reachable_golems(game, 6)
+    assert [w for _, w in got] == [1] * 5 + [2, 3, 4, 5, 6]
+    assert [c for c, _ in got[5:]] == [game.point_deck[-m] for m in range(1, 6)]
+    assert len(reachable_golems(game, 1)) == 5       # last claim: row only
+
+
+@pytest.mark.parametrize("seed", range(60))
+def test_cheapest_schedule_matches_brute_force(seed):
+    rng = random.Random(seed)
+    k = rng.randint(1, 4)
+    items = [(rng.randint(4, 20), 1) for _ in range(rng.randint(1, 4))]
+    items += [(rng.randint(4, 20), w) for w in range(2, k + 1)]
+    assert _cheapest_schedule(items, k) == _brute_schedule(items, k)
+
+
+def test_a_cheap_golem_deep_in_the_deck_is_not_counted():
+    """It cannot surface before the claims run out, so pricing it would
+    understate what is owed."""
+    game = new_solo_game(seed=0)
+    cheapest_card = min(game.point_deck, key=golem_value)
+    game.point_deck.remove(cheapest_card)
+    game.point_deck.insert(0, cheapest_card)            # drawn last
+    assert cheapest_card not in [c for c, _ in reachable_golems(game, 6)]

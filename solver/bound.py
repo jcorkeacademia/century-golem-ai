@@ -242,16 +242,18 @@ def h(game: Game) -> int:
     if claims_left <= 0:
         return 0
 
-    # The cheapest golems still gettable, priced on the capped scale. Read off
-    # the whole remaining pool, not just the row: pricing only the five
-    # visible ones could overstate what is owed, and an overstated h prunes
-    # winning lines. Taking the cheapest is the same relaxation — you may be
-    # forced into dearer golems, never cheaper ones.
-    facts = [_facts(c) for c in _remaining(game)]
-    cap = Crystal(max((f[1] for f in facts), default=0))   # same as cap_for
-    cheapest = sorted(f[2][cap] for f in facts)[:claims_left]
-
-    owed = sum(cheapest)
+    # What the remaining claims must cost, at least. Only golems that can
+    # actually surface count (see reachable_golems): a claim takes one golem
+    # from the row and draws one replacement, so the i-th claim from here
+    # must come from the visible row plus the next i-1 cards drawn. The cap
+    # is the highest colour among THOSE golems — any cap is admissible as
+    # long as golem prices and gains use the same one, and a lower cap is
+    # tighter. Taking the cheapest reachable set is the same relaxation as
+    # before: you may be forced into dearer golems, never cheaper ones.
+    windows = reachable_golems(game, claims_left)
+    facts = [(_facts(c), w) for c, w in windows]
+    cap = Crystal(max((f[1] for f, _ in facts), default=0))
+    owed = _cheapest_schedule([(f[2][cap], w) for f, w in facts], claims_left)
 
     # Two valid bounds on the building turns; the larger is also valid.
     #
@@ -492,3 +494,49 @@ def _turns_to_gain(first: list[int], every: list[int], deficit: int,
             if pre_first[j0] + rested[t - j0] >= deficit:
                 return t
     return _NEVER
+
+
+# ---------------------------------------------------------------------------
+# Step 8: board-aware golem pricing
+# ---------------------------------------------------------------------------
+# Pricing the cheapest golems of all those left ignores the board: at the
+# opening that is the six cheapest of 36, identical on every seed. But a claim
+# removes one golem from the row and draws exactly one replacement (engine
+# _slide_and_refill_points, drawing from the END of point_deck). So the i-th
+# claim from here can only take a golem from the visible row or the next
+# i - 1 draws: with six claims to go, ten golems at most can ever be claimed.
+
+def reachable_golems(game: Game, claims_left: int) -> list[tuple[PointCard, int]]:
+    """(golem, earliest claim it could fill), for every golem that can surface
+    before the last claim: row golems from claim 1, the m-th card drawn from
+    claim m + 1."""
+    out = [(c, 1) for c in game.point_row if c is not None]
+    deck = game.point_deck
+    for m in range(1, claims_left):
+        if m > len(deck):
+            break
+        out.append((deck[-m], m + 1))
+    return out
+
+
+def _cheapest_schedule(items: list[tuple[int, int]], k: int) -> int:
+    """Least total price of k distinct golems, claim i taking one whose
+    earliest claim is <= i. Items are (price, earliest).
+
+    The feasible sets are the independent sets of a transversal matroid, so
+    the matroid greedy is exact: cheapest first, keep a golem if the kept set
+    can still fill distinct claims. With every window ending at claim k, that
+    is Hall's condition: for each s, at most k - s + 1 kept golems have
+    earliest >= s. If fewer than k golems can be scheduled, the game cannot be
+    won from here; the partial sum is still a valid (loose) lower bound.
+    """
+    kept: list[int] = []                 # earliest-claim values of kept golems
+    total = 0
+    for price, earliest in sorted(items):
+        trial = kept + [earliest]
+        if all(sum(1 for e in trial if e >= s) <= k - s + 1 for s in range(1, k + 1)):
+            kept = trial
+            total += price
+            if len(kept) == k:
+                break
+    return total
