@@ -55,3 +55,12 @@ def test_beam_restores_the_multiplayer_scoring():
     original = features.terminal_value
     beam(0, width=5)
     assert features.terminal_value is original
+
+
+def test_beam_to_a_lowered_goal_replays_against_that_goal():
+    from solver.improve import verify_to
+    import pytest
+    plan = beam(0, width=20, target=2)
+    verify_to(0, plan, target=2)
+    with pytest.raises(AssertionError):
+        verify_to(0, plan)             # two golems do not win the real game

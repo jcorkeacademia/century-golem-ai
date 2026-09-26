@@ -1,0 +1,247 @@
+{
+ "seconds_per_proof": 600.0,
+ "rows": [
+  {
+   "seed": 0,
+   "target": 2,
+   "h": 6,
+   "flow": 7,
+   "beam": 10,
+   "proven": true,
+   "best": 10,
+   "nodes": 2401,
+   "seconds": 1
+  },
+  {
+   "seed": 0,
+   "target": 3,
+   "h": 9,
+   "flow": 9,
+   "beam": 17,
+   "proven": false,
+   "best": 17,
+   "nodes": 669497,
+   "seconds": 604
+  },
+  {
+   "seed": 1,
+   "target": 2,
+   "h": 6,
+   "flow": 7,
+   "beam": 12,
+   "proven": true,
+   "best": 12,
+   "nodes": 12812,
+   "seconds": 7
+  },
+  {
+   "seed": 1,
+   "target": 3,
+   "h": 9,
+   "flow": 10,
+   "beam": 18,
+   "proven": false,
+   "best": 18,
+   "nodes": 667895,
+   "seconds": 603
+  },
+  {
+   "seed": 2,
+   "target": 2,
+   "h": 6,
+   "flow": 7,
+   "beam": 12,
+   "proven": true,
+   "best": 12,
+   "nodes": 21675,
+   "seconds": 10
+  },
+  {
+   "seed": 2,
+   "target": 3,
+   "h": 9,
+   "flow": 10,
+   "beam": 20,
+   "proven": false,
+   "best": 20,
+   "nodes": 633042,
+   "seconds": 660
+  },
+  {
+   "seed": 3,
+   "target": 2,
+   "h": 6,
+   "flow": 8,
+   "beam": 14,
+   "proven": true,
+   "best": 14,
+   "nodes": 175073,
+   "seconds": 105
+  },
+  {
+   "seed": 3,
+   "target": 3,
+   "h": 10,
+   "flow": 10,
+   "beam": 20,
+   "proven": false,
+   "best": 20,
+   "nodes": 543887,
+   "seconds": 601
+  },
+  {
+   "seed": 4,
+   "target": 2,
+   "h": 6,
+   "flow": 8,
+   "beam": 14,
+   "proven": true,
+   "best": 14,
+   "nodes": 295984,
+   "seconds": 194
+  },
+  {
+   "seed": 4,
+   "target": 3,
+   "h": 9,
+   "flow": 10,
+   "beam": 18,
+   "proven": false,
+   "best": 18,
+   "nodes": 825707,
+   "seconds": 601
+  },
+  {
+   "seed": 5,
+   "target": 2,
+   "h": 6,
+   "flow": 7,
+   "beam": 12,
+   "proven": true,
+   "best": 12,
+   "nodes": 35499,
+   "seconds": 17
+  },
+  {
+   "seed": 5,
+   "target": 3,
+   "h": 9,
+   "flow": 9,
+   "beam": 17,
+   "proven": true,
+   "best": 16,
+   "nodes": 672724,
+   "seconds": 520
+  },
+  {
+   "seed": 5,
+   "target": 4,
+   "h": 11,
+   "flow": 13,
+   "beam": 23,
+   "proven": false,
+   "best": 22,
+   "nodes": 1093236,
+   "seconds": 601
+  },
+  {
+   "seed": 6,
+   "target": 2,
+   "h": 5,
+   "flow": 6,
+   "beam": 10,
+   "proven": true,
+   "best": 10,
+   "nodes": 6363,
+   "seconds": 2
+  },
+  {
+   "seed": 6,
+   "target": 3,
+   "h": 7,
+   "flow": 9,
+   "beam": 14,
+   "proven": true,
+   "best": 14,
+   "nodes": 95454,
+   "seconds": 56
+  },
+  {
+   "seed": 6,
+   "target": 4,
+   "h": 10,
+   "flow": 12,
+   "beam": 19,
+   "proven": false,
+   "best": 19,
+   "nodes": 494563,
+   "seconds": 603
+  },
+  {
+   "seed": 7,
+   "target": 2,
+   "h": 6,
+   "flow": 7,
+   "beam": 13,
+   "proven": true,
+   "best": 13,
+   "nodes": 85128,
+   "seconds": 45
+  },
+  {
+   "seed": 7,
+   "target": 3,
+   "h": 10,
+   "flow": 11,
+   "beam": 19,
+   "proven": false,
+   "best": 19,
+   "nodes": 544128,
+   "seconds": 611
+  },
+  {
+   "seed": 8,
+   "target": 2,
+   "h": 6,
+   "flow": 8,
+   "beam": 14,
+   "proven": true,
+   "best": 13,
+   "nodes": 100100,
+   "seconds": 52
+  },
+  {
+   "seed": 8,
+   "target": 3,
+   "h": 10,
+   "flow": 11,
+   "beam": 19,
+   "proven": false,
+   "best": 19,
+   "nodes": 606607,
+   "seconds": 633
+  },
+  {
+   "seed": 9,
+   "target": 2,
+   "h": 6,
+   "flow": 7,
+   "beam": 12,
+   "proven": true,
+   "best": 12,
+   "nodes": 26924,
+   "seconds": 17
+  },
+  {
+   "seed": 9,
+   "target": 3,
+   "h": 9,
+   "flow": 9,
+   "beam": 16,
+   "proven": false,
+   "best": 16,
+   "nodes": 578667,
+   "seconds": 666
+  }
+ ]
+}
