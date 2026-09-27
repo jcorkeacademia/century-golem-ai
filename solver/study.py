@@ -17,10 +17,12 @@ Per plan:
     golems     which are claimed, what they cost, whether a token came too
     mix        counts of each kind of move
 
-    python -m solver.study [seeds] [beam width] [workers]
+    python -m solver.study [seeds] [beam width] [workers] [first seed]
 
-Writes results/solver_study.json (every plan's record) and
-results/solver_study.md (the summary).
+Seeds already in results/solver_study.json at the same beam width are kept
+and new ones merged in, so a study can be grown in instalments. Writes
+results/solver_study.json (every plan's record) and results/solver_study.md
+(the summary, with 95% ranges on every pick rate).
 """
 
 from __future__ import annotations
@@ -31,7 +33,8 @@ import time
 from collections import Counter, defaultdict
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
-from statistics import mean
+from math import sqrt
+from statistics import mean, stdev
 
 from bots._engine import (Acquire, Claim, Discard, PlayCrystal, PlayTrade,
                           PlayUpgrade, Rest)
@@ -101,6 +104,17 @@ def study_seed(seed: int, width: int = 1000) -> dict:
 # Summary
 # ---------------------------------------------------------------------------
 
+def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """95% range for a rate k/n (Wilson score interval): honest at small n
+    and near 0% or 100%, where the plain +/- formula is not."""
+    if n == 0:
+        return 0.0, 1.0
+    p = k / n
+    centre = (p + z * z / (2 * n)) / (1 + z * z / n)
+    half = z * sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / (1 + z * z / n)
+    return max(0.0, centre - half), min(1.0, centre + half)
+
+
 def _summary(rows: list[dict], who: str) -> dict:
     recs = [r[who] for r in rows]
     buys = Counter(b["card"] for r in recs for b in r["bought"])
@@ -148,7 +162,9 @@ def _write(rows: list[dict], width: int) -> None:
         "",
         "| | near-optimal | tuned bot |",
         "|---|---|---|",
-        f"| turns to win (mean) | {mean(best['turns']):.1f} | {mean(bots['turns']):.1f} |",
+        f"| turns to win (mean ± 95%) | {mean(best['turns']):.1f} ± "
+        f"{1.96 * stdev(best['turns']) / sqrt(n):.1f} | {mean(bots['turns']):.1f} ± "
+        f"{1.96 * stdev(bots['turns']) / sqrt(n):.1f} |",
         f"| turns to win (range) | {min(best['turns'])}-{max(best['turns'])} | "
         f"{min(bots['turns'])}-{max(bots['turns'])} |",
         "| turn of golem 1-6 (mean) | " + ", ".join(map(str, best["claim_turn_means"]))
@@ -165,19 +181,24 @@ def _write(rows: list[dict], width: int) -> None:
         "",
         "## Cards near-optimal plans buy, by pick rate",
         "",
-        "Bought / times the card appeared in the row across all plans; cards offered",
-        f"at least {max(3, n // 10)} times. The bot's rate is alongside for comparison.",
+        "Bought / times the card appeared in the row across all plans, with the 95%",
+        f"range; cards offered at least {max(3, n // 10)} times. **Differs** marks the",
+        "cards whose two ranges do not overlap: the only differences to trust.",
         "",
-        "| card | near-optimal | tuned bot |",
-        "|---|---|---|",
+        "| card | near-optimal | 95% range | tuned bot | 95% range | |",
+        "|---|---|---|---|---|---|",
     ]
     floor = max(3, n // 10)
     ranked = sorted(((b / o, name, b, o) for name, (b, o) in best["pick_rate"].items()
                      if o >= floor), reverse=True)
     for rate, name, b, o in ranked:
         bb, bo = bots["pick_rate"].get(name, (0, 0))
+        lo, hi = wilson(b, o)
+        blo, bhi = wilson(bb, bo)
+        differs = "**differs**" if hi < blo or bhi < lo else ""
         bot_rate = f"{bb}/{bo} ({bb / bo:.0%})" if bo else "-"
-        lines.append(f"| {name} | {b}/{o} ({rate:.0%}) | {bot_rate} |")
+        lines.append(f"| {name} | {b}/{o} ({rate:.0%}) | {lo:.0%}-{hi:.0%} | "
+                     f"{bot_rate} | {blo:.0%}-{bhi:.0%} | {differs} |")
     lines += ["", "## Most-played cards (near-optimal plans)", "",
               "| card | plays | per game |", "|---|---|---|"]
     for name, count in Counter(best["plays"]).most_common(12):
@@ -185,12 +206,30 @@ def _write(rows: list[dict], width: int) -> None:
     (OUT / "solver_study.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _existing(width: int) -> dict[int, dict]:
+    path = OUT / "solver_study.json"
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("beam_width") != width:
+        return {}                       # a different width is a different study
+    return {r["seed"]: r for r in data["seeds"]}
+
+
 if __name__ == "__main__":  # pragma: no cover - manual run
     n = int(sys.argv[1]) if len(sys.argv) > 1 else 100
     width = int(sys.argv[2]) if len(sys.argv) > 2 else 1000
     workers = int(sys.argv[3]) if len(sys.argv) > 3 else 16
+    first = int(sys.argv[4]) if len(sys.argv) > 4 else 0
     t = time.time()
+    have = _existing(width)
+    todo = [s for s in range(first, first + n) if s not in have]
     with ProcessPoolExecutor(max_workers=workers) as pool:
-        rows = list(pool.map(study_seed, range(n), [width] * n))
+        for row in pool.map(study_seed, todo, [width] * len(todo)):
+            have[row["seed"]] = row
+            if len(have) % 25 == 0:     # save as it goes: hours-long runs
+                _write([have[k] for k in sorted(have)], width)
+    rows = [have[k] for k in sorted(have)]
     _write(rows, width)
-    print(f"wrote results/solver_study.md  ({n} seeds, {time.time() - t:.0f}s wall)")
+    print(f"wrote results/solver_study.md  ({len(rows)} seeds, {len(todo)} new, "
+          f"{time.time() - t:.0f}s wall)")
