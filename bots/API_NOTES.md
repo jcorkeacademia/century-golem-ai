@@ -1,7 +1,7 @@
 # API_NOTES.md — the engine as it actually is
 
 **Steps 0–1.** Every name and shape below was verified by running the code,
-not read off a doc. Where `BOT_IMPLEMENTATION_PROMPT.md` assumes something
+not read off a doc. Where `docs/briefs/BOT_IMPLEMENTATION_PROMPT.md` assumes something
 that isn't true, §4 says so.
 
 §§1–5 record the engine **as Step 0 found it**, and §4 is the mismatch list
@@ -179,7 +179,7 @@ mean golems claimed    4.67 per player
 mean final score       69.9
 ```
 
-Mean game length (364) matches `BOT_RULES_REFERENCE.md` §5's "~330 actions".
+Mean game length (364) matches `docs/BOT_RULES_REFERENCE.md` §5's "~330 actions".
 **Mean per-action cost does not:** that doc reports ~14 ms, this measures
 0.041 ms — a ~340× gap. The doc's figure came from a harness running
 invariant checks on every action; 0.041 ms is the engine alone. Budget
@@ -330,7 +330,7 @@ the compendium minus everything visible) but never **order**. In practice:
 
 - Never index into either deck, never read `deck[-1]`, never iterate it in a
   feature.
-- `len(deck)` is fine — the server publishes counts (`CONTRACT.md`).
+- `len(deck)` is fine — the server publishes counts (`docs/CONTRACT.md`).
 - Applying `Acquire`/`Claim` to a clone pops the *true* next card. Step 1.3's
   `shuffle_hidden(rng)` on the clone first is what keeps this honest (brief
   §5.3), and it is easy to forget.

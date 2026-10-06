@@ -11,7 +11,7 @@ from serialize import game_to_state
 
 @pytest.fixture
 def session():
-    return T.TutorialSession("ABCD", "Ann", "aubin")
+    return T.TutorialSession("ABCD", "Ann", "amber")
 
 
 # One right answer per objective, in OBJECTIVES order.
@@ -191,7 +191,7 @@ def test_tutorial_state_carries_the_field(session):
 
 
 def test_ordinary_rooms_have_no_tutorial_field():
-    room = Room(room_id="ABCD", names=["Ann", "Bob"], avatars=["aubin", "matt"])
+    room = Room(room_id="ABCD", names=["Ann", "Bob"], avatars=["amber", "rust"])
     room.game = Game(room.names, seed=1)
     assert "tutorial" not in game_to_state(room, 0)
 
@@ -199,7 +199,7 @@ def test_ordinary_rooms_have_no_tutorial_field():
 def test_tutorial_codes_show_the_painted_art():
     """The client gives tutorials 6-character codes (App.jsx) so the board
     and the staged cards show the painted set, not the photo set."""
-    s = T.TutorialSession("ABCDEF", "Ann", "aubin")
+    s = T.TutorialSession("ABCDEF", "Ann", "amber")
     state = s.state()
     arts = [c["art"] for c in state["shared"]["golem_row"] + state["shared"]["merchant_row"]]
     assert arts and all(a.startswith(("/static/golems-gol/", "/static/merchants-gol/")) for a in arts)

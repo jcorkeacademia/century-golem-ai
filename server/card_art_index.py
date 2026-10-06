@@ -1,5 +1,5 @@
 """
-Card art -> URL index, built once at import time (see CARD_ART_HANDOVER.md §5).
+Card art -> URL index, built once at import time (see docs/CARD_ART_HANDOVER.md §5).
 
 card_art.art_for() is a filesystem lookup; calling it per-request would touch
 disk on every state broadcast. Instead we resolve every card in the compendium

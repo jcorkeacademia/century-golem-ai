@@ -6,7 +6,7 @@
 
 ## 0. Context and goal
 
-This repo contains a working rules engine for *Century: Golem Edition* (`engine/century_engine.py`, `engine/century_cards.py`). Background docs: `HANDOVER.md`, `BOT_RULES_REFERENCE.md`, `CONTRACT.md`, `CLAUDE.md`.
+This repo contains a working rules engine for *Century: Golem Edition* (`engine/century_engine.py`, `engine/century_cards.py`). Background docs: `docs/HANDOVER.md`, `docs/BOT_RULES_REFERENCE.md`, `docs/CONTRACT.md`, `CLAUDE.md`.
 
 **Goal:** a bot whose decisions a human can **read and learn from**, not a black box.
 

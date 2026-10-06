@@ -6,6 +6,11 @@ card objects.
 **Status:** complete and audited. Nothing here touches the server or web UI yet.
 **Date:** 1 Sep 2026
 
+> **Public-repo note:** the generated art, source photos, backgrounds and
+> photo mappings are not committed (personal photos / publisher artwork).
+> The pipeline below still works locally; without its output the web client
+> draws each card from its data (`web/src/components/CardFace.jsx`).
+
 ---
 
 ## 1. What was built
@@ -81,10 +86,10 @@ unremarkable. An MCTS agent trained on the old data would have built strategy
 around a card that does not exist.
 
 **Also resolved:** merchant #14 is confirmed as `2G → 1M, 2Y` (pay 2 green, get
-1 magenta + 2 yellow). This was flagged as an open question in `HANDOVER.md` §8.
+1 magenta + 2 yellow). This was flagged as an open question in `docs/HANDOVER.md` §8.
 The four-colour golem costs (#10, #11, #20, #23, #36) also all verified clean.
 
-`HANDOVER.md` §8 should be updated to close both items.
+`docs/HANDOVER.md` §8 should be updated to close both items.
 
 ---
 

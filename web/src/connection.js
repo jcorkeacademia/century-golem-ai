@@ -1,8 +1,8 @@
-// One WebSocket, for this browser's own seat — per CONTRACT.md, a browser
+// One WebSocket, for this browser's own seat — per docs/CONTRACT.md, a browser
 // never opens more than one connection. The server assigns the seat (the
 // next open one, or an existing one this name already holds) based on
 // `name` alone; there's no roster to send up front. `avatarId` only
-// matters the first time this name joins a room (see CONTRACT.md's
+// matters the first time this name joins a room (see docs/CONTRACT.md's
 // Connecting note) — a reconnect just carries it along harmlessly.
 //
 // The socket is kept alive and re-established automatically: tunnels and
@@ -27,7 +27,7 @@ export function createGameConnection({ serverUrl, roomId, name, avatarId, solo =
     if (difficulty) url += `&difficulty=${encodeURIComponent(difficulty)}`
   }
   // The interactive tutorial (server/tutorial.py): a recorded 2-player game
-  // with text at every step, no lobby — see CONTRACT.md's tutorial note.
+  // with text at every step, no lobby — see docs/CONTRACT.md's tutorial note.
   if (tutorial) url += '&tutorial=true'
 
   let ws = null

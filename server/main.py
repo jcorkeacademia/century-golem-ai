@@ -40,20 +40,22 @@ BOT_MOVE_DELAY_SECONDS = 0.45
 app = FastAPI()
 
 HOST_SEAT = 0  # whoever joins first — the only seat allowed to send "start"
-DEFAULT_AVATAR = "gem"  # avatars.js's AVATARS[0] — used only if a client ever omits ?avatar=
+DEFAULT_AVATAR = "amber"  # avatars.js's AVATARS[0] — used only if a client ever omits ?avatar=
 
-# Card art (CARD_ART_HANDOVER.md §5): serve the rendered PNGs straight out of
+# Card art (docs/CARD_ART_HANDOVER.md §5): serve the rendered PNGs straight out of
 # the engine's own output folders rather than duplicating them under web/ —
 # card_art.py already knows where they live, so this stays correct if they move.
-app.mount("/static/golems", StaticFiles(directory=str(card_art.GOLEM_DIR)), name="golem-art")
+# check_dir off: card art is not in the repo, so a fresh clone has no out/
+# folders; cards then carry art=None and the client draws them from data.
+app.mount("/static/golems", StaticFiles(directory=str(card_art.GOLEM_DIR), check_dir=False), name="golem-art")
 # Painted set for rooms with 5+ character codes (card_art_index.uses_gol_art). check_dir off
 # so a checkout that hasn't run make_cards.py / make_merchants.py --set gol
 # still starts.
 app.mount("/static/golems-gol", StaticFiles(directory=str(card_art.GOL_GOLEM_DIR), check_dir=False), name="golem-art-gol")
 app.mount("/static/merchants-gol", StaticFiles(directory=str(card_art.GOL_MERCH_DIR), check_dir=False), name="merchant-art-gol")
-app.mount("/static/merchants", StaticFiles(directory=str(card_art.MERCH_DIR)), name="merchant-art")
+app.mount("/static/merchants", StaticFiles(directory=str(card_art.MERCH_DIR), check_dir=False), name="merchant-art")
 # Same 4 crystal icons make_cards.py/make_merchants.py stamp onto the card
-# art itself (CARD_ART_HANDOVER.md §1) — reused as-is for the caravan/cost
+# art itself (docs/CARD_ART_HANDOVER.md §1) — reused as-is for the caravan/cost
 # dots so they're pixel-identical to what's printed on the cards.
 app.mount("/static/crystals", StaticFiles(directory=str(card_art.ROOT / "crystals")), name="crystal-icons")
 

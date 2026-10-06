@@ -153,7 +153,7 @@ Our hypotheses, not conclusions:
 | `solver/greedy.py` | the starting incumbent from existing bots |
 | `solver/tiny.py` | tiny boards and the brute force |
 | `solver/bench.py` | the benchmark |
-| `HANDOVER.md` | the engine design doc |
+| `docs/HANDOVER.md` | the engine design doc |
 | the "Century Solo Solver — Design Handover" PDF | the original plan, with the StarCraft analogy |
 
 *State at the time of writing:* the potential bound in `solver/bound.py` and its tests are finished

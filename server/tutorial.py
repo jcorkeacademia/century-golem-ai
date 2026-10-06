@@ -2,7 +2,7 @@
 
 Reached only through main.ws_room's `?tutorial=true` check. Ordinary,
 practice and guided rooms never touch this module and never carry a
-`tutorial` field (CONTRACT.md §1e).
+`tutorial` field (docs/CONTRACT.md §1e).
 
 The flow is the "Interactive tutorial" design doc, as a flat list of STEPS.
 The player takes over three times:
@@ -76,7 +76,7 @@ DOUBLE_UPGRADE = next(c for c in cards.STARTING_CARDS if getattr(c, "steps", Non
 SHOWCASE_CARDS = ("+2G", "3Y->1M", "Triple upgrade")       # scene 8
 
 # One entry per step. Text is the design doc's wording. `wait` says what ends
-# the step (CONTRACT.md §1e); "action" steps take the recording's next move.
+# the step (docs/CONTRACT.md §1e); "action" steps take the recording's next move.
 STEPS: tuple[dict, ...] = (
     {"id": "welcome", "scene": 1, "title": "Welcome", "stage": "title", "wait": "next",
      "paragraphs": [

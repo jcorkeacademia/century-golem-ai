@@ -127,7 +127,7 @@ def uses_every_step(game: Game, action: Action) -> bool:
 
     The house rule (the user's, 2026-09-27): an Upgrade card must be used in
     full — Upgrade 2 upgrades exactly two steps, Upgrade 3 exactly three.
-    The engine and HANDOVER.md say "up to N, each optional", but the web
+    The engine and docs/HANDOVER.md say "up to N, each optional", but the web
     client's Confirm button only enables at exactly N picks, so a plan with a
     partial upgrade is one a player cannot actually make in the game. The
     engine is deliberately left alone; the solver just never proposes it.

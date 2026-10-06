@@ -1,6 +1,6 @@
 """The result: a proven bracket on the fewest turns to win, per seed.
 
-Proving the full-game optimum is out of reach (HANDOFF_search_performance.md),
+Proving the full-game optimum is out of reach (docs/briefs/SOLVER_SEARCH_HANDOFF.md),
 so what this reports is a bracket that is sound at both ends:
 
     lower   max(h, flow bound) at the opening. Both are admissible: h checked

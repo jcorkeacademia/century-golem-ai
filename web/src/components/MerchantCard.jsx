@@ -1,10 +1,11 @@
 import CrystalDots from './CrystalDots.jsx'
 import { crystalIconUrl } from '../crystalIcons.js'
 import { SERVER_HTTP_URL } from '../config.js'
+import { MerchantFace } from './CardFace.jsx'
 
-// Cost/gain is already baked into the art (the cream effect strip in the
-// top-left corner of the rendered PNG — see CARD_ART_HANDOVER.md §6), so no
-// separate CSS overlay duplicates it. The name/code (e.g. "1G1Y->1M") is
+// With art, cost/gain is baked into the image (the cream effect strip in the
+// top-left corner of the rendered PNG — see docs/CARD_ART_HANDOVER.md §6).
+// Without art the face is drawn from the card's data (CardFace.jsx). The name/code (e.g. "1G1Y->1M") is
 // redundant with that same baked-in strip, so it isn't shown either — it
 // still rides along as the `title` tooltip for hover/debugging.
 //
@@ -75,7 +76,9 @@ export default function MerchantCard({
       )}
 
       <div className={`card-image-slot${card.art ? ' has-art' : ''}`}>
-        {card.art && <img className="card-art-img" src={SERVER_HTTP_URL + card.art} alt="" />}
+        {card.art
+          ? <img className="card-art-img" src={SERVER_HTTP_URL + card.art} alt="" />
+          : <MerchantFace card={card} />}
       </div>
     </div>
   )

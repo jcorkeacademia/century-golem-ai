@@ -2,7 +2,7 @@
 
 The single seam between the Python server and the React client. Both sides implement
 exactly this. Change it here first, then update both sides. See `CLAUDE.md` for rules
-and `HANDOVER.md` for engine details.
+and `docs/HANDOVER.md` for engine details.
 
 Transport: **WebSocket**, one connection per client, JSON text frames — one socket per
 seat, period (a browser never opens more than one). One `Game` per room,
@@ -146,7 +146,7 @@ Include all four keys even when 0, so the client never guesses.
 
 **`art`** is a server-relative URL (join with the HTTP origin the client already
 derives from `SERVER_URL`) for the card's rendered artwork, or `null` if the
-card has no matching art (see `CARD_ART_HANDOVER.md`). Present on every golem
+card has no matching art (see `docs/CARD_ART_HANDOVER.md`). Present on every golem
 and merchant/hand/played card. Resolved server-side via `card_art.art_for()`,
 indexed once at startup — never null for cards in the shipped compendium.
 

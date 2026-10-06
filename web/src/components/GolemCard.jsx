@@ -1,8 +1,9 @@
 import { SERVER_HTTP_URL } from '../config.js'
+import { GolemFace } from './CardFace.jsx'
 
-// Cost is already baked into the art (crystal row along the bottom of the
-// rendered PNG — see CARD_ART_HANDOVER.md §6), so no separate CSS overlay
-// duplicates it here.
+// With art, the cost is baked into the image (crystal row along the bottom
+// of the rendered PNG — see docs/CARD_ART_HANDOVER.md §6). Without art the
+// face is drawn from the card's data (CardFace.jsx).
 export default function GolemCard({ card, onClick, showPoints = true, title }) {
   const clickable = typeof onClick === 'function'
   return (
@@ -12,7 +13,9 @@ export default function GolemCard({ card, onClick, showPoints = true, title }) {
       title={title ?? (clickable ? `Claim ${card.name}` : card.name)}
     >
       <div className={`card-image-slot${card.art ? ' has-art' : ''}`}>
-        {card.art && <img className="card-art-img" src={SERVER_HTTP_URL + card.art} alt="" />}
+        {card.art
+          ? <img className="card-art-img" src={SERVER_HTTP_URL + card.art} alt="" />
+          : <GolemFace card={card} />}
       </div>
 
       {showPoints && (

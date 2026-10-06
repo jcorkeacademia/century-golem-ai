@@ -1,4 +1,4 @@
-"""Inbound client message -> engine Action, per CONTRACT.md 2/3."""
+"""Inbound client message -> engine Action, per docs/CONTRACT.md 2/3."""
 
 from __future__ import annotations
 

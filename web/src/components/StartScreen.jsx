@@ -9,7 +9,7 @@ const CHECK_PATH = 'M5 12.5 10 17.5 19 7'
 // ..." to show, but the avatar picker itself carries straight over: name +
 // avatar, then either CREATE (room code left blank — App.jsx generates one)
 // or JOIN (a typed code). The choice travels to the server as part of
-// connecting (CONTRACT.md's `?avatar=`) and from there is just another
+// connecting (docs/CONTRACT.md's `?avatar=`) and from there is just another
 // field on that seat, same as `name` — every other client sees it too.
 export default function StartScreen({ initialError, onSubmit, onSoloSubmit, onTutorialSubmit }) {
   const [name, setName] = useState('')
@@ -55,12 +55,12 @@ export default function StartScreen({ initialError, onSubmit, onSoloSubmit, onTu
     onTutorialSubmit(name.trim() || 'You', chosen)
   }
 
-  // Ten real photos are a lot heavier than the old inline-SVG glyphs — kick
-  // all ten off the moment this screen mounts so the grid below is already
-  // warm by the time it paints, instead of each circle popping in as its
-  // own lazy <img> request resolves.
+  // If avatars have photos (see avatars.js), kick them all off the moment
+  // this screen mounts so the grid below is already warm by the time it
+  // paints. Letter-circle avatars (src: null) need nothing.
   useEffect(() => {
     for (const av of AVATARS) {
+      if (!av.src) continue
       const img = new Image()
       img.src = av.src
     }

@@ -2,7 +2,7 @@
 
 DFBB's cost goes as branching^(b - h), and b from the bots is ~41 while h at
 the root is ~11. Proving a full-game optimum is out of reach (see
-HANDOFF_search_performance.md), so the target is a provable GAP per seed:
+docs/briefs/SOLVER_SEARCH_HANDOFF.md), so the target is a provable GAP per seed:
 
     lower   the larger of h and the crystal-flow bound at the opening
             (both admissible, both validated; see solver.flow)

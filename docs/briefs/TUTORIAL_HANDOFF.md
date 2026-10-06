@@ -4,7 +4,7 @@
 
 ## Status, 1 Oct 2026: a working draft exists
 
-The owner's spec is `Interactive tutorial.pdf` in the repo root. A first draft
+The owner's spec is `docs/briefs/interactive-tutorial-script.pdf`. A first draft
 of it is built and runs end to end:
 
 - **Server:**
@@ -13,7 +13,7 @@ of it is built and runs end to end:
   - `server/tutorial_recording.json` is the recorded game: seed 9 plus 68
     moves, written by `server/make_tutorial_recording.py`.
   - `?tutorial=true` is routed in `main.py`.
-- **Contract:** `CONTRACT.md` §1e and the "Tutorial" part of §2.
+- **Contract:** `docs/CONTRACT.md` §1e and the "Tutorial" part of §2.
 - **Client:**
   - `web/src/components/TutorialOverlay.jsx`, with styles at the end of
     `styles.css`
@@ -43,8 +43,8 @@ format) in a **separate document** that they will give you with this one.
 If the spec leaves something open that §10 lists, ask the owner. Don't guess.
 
 **Read first, in this order:** `CLAUDE.md` (working rules),
-`PROJECT_HANDOVER.md` §1, §3 and §6 (the platform and the guided mode),
-`CONTRACT.md` §1a and §2 (the wire format). The rest of `PROJECT_HANDOVER.md`
+`docs/PROJECT_HANDOVER.md` §1, §3 and §6 (the platform and the guided mode),
+`docs/CONTRACT.md` §1a and §2 (the wire format). The rest of `docs/PROJECT_HANDOVER.md`
 covers the AI and solver work. It's useful background, but you don't need it
 to build a tutorial.
 
@@ -138,7 +138,7 @@ was a deliberate design decision.
 - **36 golems**, worth 6–20 points. Costs range from 2 colours to all 4.
 - **Card art:** each card's cost and gain are **printed on its art**, so the UI
   shows no text for them. The name appears only as a hover tooltip. Art uses
-  custom photos (`CARD_ART_HANDOVER.md`). There's also a second, painted set
+  custom photos (`docs/CARD_ART_HANDOVER.md`). There's also a second, painted set
   in `gol/` (see §8).
 
 ---
@@ -166,8 +166,8 @@ actually see.
 - Neither includes crystals, which only count at the end. The Final Tally
   shows the real total.
 
-Mockups of the intended layout: `mockup.png` and `mockups/me-panel.png`,
-`mockups/middle-panel.png`.
+Mockups of the intended layout: `docs/mockups/full-board.png`, `docs/mockups/me-panel.png`
+and `docs/mockups/middle-panel.png`.
 
 ---
 
@@ -290,7 +290,7 @@ You can build a known board without touching the engine:
 
 ### 6.3 Components that render from plain props
 `MerchantCard`, `GolemCard`, `CaravanGrid`, `CrystalDots`, `TokenPile` and
-`GolemSlots` all take plain objects in the `CONTRACT.md` §1a shapes. A static
+`GolemSlots` all take plain objects in the `docs/CONTRACT.md` §1a shapes. A static
 tutorial page can show real-looking cards and caravans by passing mock data,
 for example:
 
@@ -317,7 +317,7 @@ art filenames are in `server/card_art_index.py` or any live `state` message.
 
 ## 7. Rules you must follow
 
-These come from `CLAUDE.md` and `PROJECT_HANDOVER.md` §10.
+These come from `CLAUDE.md` and `docs/PROJECT_HANDOVER.md` §10.
 
 1. **One rules implementation.**
    - No JS copy of the rules, not even a partial one to "predict" a move for
@@ -338,7 +338,7 @@ These come from `CLAUDE.md` and `PROJECT_HANDOVER.md` §10.
    that style, use plain CSS in `styles.css` with the existing `:root`
    tokens (§8), and **add no new npm or pip dependencies without asking**.
 7. **Contract first.** Any new message or state field is written into
-   `CONTRACT.md` before it's implemented on both sides.
+   `docs/CONTRACT.md` before it's implemented on both sides.
 
 ---
 

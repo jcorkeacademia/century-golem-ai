@@ -10,7 +10,7 @@ import TurnClock from './TurnClock.jsx'
 // mode that means the bots are taking their turns (main.py's _run_solo), in
 // real multiplayer it means another person is — either way every click
 // handler goes quiet until play comes back around. Layout matches
-// mockups/me-panel.png: Caravan (left) | playable+played stacked (center) |
+// docs/mockups/me-panel.png: Caravan (left) | playable+played stacked (center) |
 // Golems + tokens + Points (right).
 export default function MePanel({
   player,

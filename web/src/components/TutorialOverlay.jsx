@@ -4,7 +4,7 @@ import MerchantCard from './MerchantCard.jsx'
 import { slotColorAfterPicks, picksToColors } from '../upgrade.js'
 
 // The interactive tutorial's text and staging (server/tutorial.py,
-// CONTRACT.md §1e). Everything it shows comes off `state.tutorial` — which
+// docs/CONTRACT.md §1e). Everything it shows comes off `state.tutorial` — which
 // step, its words, what to highlight — and everything the player does goes
 // back to the server: Next is `tutorial_next`, the upgrade exercise is a
 // `play_upgrade` the server judges on a sandbox game, and the scene 6

@@ -3,7 +3,7 @@
     cd server && python make_tutorial_recording.py [first_seed] [seeds_to_try]
 
 The tutorial (tutorial.py) needs one real 2-player game, stored as a seed
-plus every move in CONTRACT.md §2's message format, with:
+plus every move in docs/CONTRACT.md §2's message format, with:
 
 - seat 0's very first move taking the 3rd merchant card (row_index 2), so
   scene 6 can hand the player exactly that move. Only seeds where the hard

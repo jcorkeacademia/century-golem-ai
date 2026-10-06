@@ -4,7 +4,7 @@ import AvatarGlyph from './AvatarGlyph.jsx'
 const MAX_SEATS = 5
 
 // Shown once a `lobby` message has arrived and before the game actually
-// starts (CONTRACT.md 1d) — lists whoever has joined so far and updates
+// starts (docs/CONTRACT.md 1d) — lists whoever has joined so far and updates
 // live as people come and go, since every connected socket gets a fresh
 // `lobby` broadcast on any change (see main.py's _broadcast_lobby).
 export default function WaitingRoom({ lobby, lastError, onStart, onDismissError, onLeave }) {

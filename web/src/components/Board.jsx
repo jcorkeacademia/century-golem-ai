@@ -14,7 +14,7 @@ import { avatarIdForSeat } from '../avatars.js'
 import { maxAffordableTradeTimes } from '../trade.js'
 import { crystalIconUrl } from '../crystalIcons.js'
 
-// Radial seating per mockup.png: bottom-center is always this browser's own
+// Radial seating per docs/mockups/full-board.png: bottom-center is always this browser's own
 // seat (state.you) — the only panel with click handlers, since it's the
 // only seat this client is ever allowed to act for. The other slots are
 // fixed relative to that seat (seat+1, seat+2, ...), not to whoever's
@@ -39,7 +39,7 @@ const OPPONENT_SLOTS_BY_COUNT = {
 const MERCHANT_ROW_SIZE = 6 // century_engine.Game.MERCHANT_ROW
 const NO_STAGED_PAYMENTS = Array(MERCHANT_ROW_SIZE).fill(null)
 
-// Each player's own choice, straight from the server (CONTRACT.md's
+// Each player's own choice, straight from the server (docs/CONTRACT.md's
 // `avatar` field) — avatarIdForSeat is only a fallback for the rare case a
 // seat somehow doesn't have one.
 function resolveAvatar(player) {
@@ -80,7 +80,7 @@ export default function Board({ game, onLeave, onPractice }) {
 
   const n = state.players.length
   const current = state.current
-  // This browser's own seat (CONTRACT.md 1a) — with real per-device
+  // This browser's own seat (docs/CONTRACT.md 1a) — with real per-device
   // multiplayer, that can be any seat, not always 0, so this panel is
   // pinned to whichever seat the server says is "you" rather than a
   // hardcoded index. "Is it my turn" is a separate question

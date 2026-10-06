@@ -659,7 +659,7 @@ body {
 }
 
 /* ---------- me panel ---------- */
-/* Layout matches mockups/me-panel.png: Caravan | playable+played (stacked) |
+/* Layout matches docs/mockups/me-panel.png: Caravan | playable+played (stacked) |
    Golems+Coins+Points, as two side-by-side boxes. */
 
 .me-panel {
@@ -1499,6 +1499,61 @@ body {
 .merchant-card.kind-upgrade .card-image-slot::after { content: '\2191'; }
 .merchant-card.kind-trade .card-image-slot::after { content: '\21C4'; }
 .golem-card .card-image-slot::after { content: '\2605'; }
+
+/* Drawn-from-data card face (CardFace.jsx), shown when a card has no art. */
+.card-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10% 6%;
+  z-index: 1;
+}
+.card-face-golem {
+  background: linear-gradient(160deg, #3b4a5e, #222b38);
+  justify-content: flex-end;
+  gap: 18%;
+}
+.card-face-merchant { background: linear-gradient(160deg, #4a3f30, #2a241c); }
+.merchant-card.kind-upgrade .card-face-merchant { background: linear-gradient(160deg, #3f3550, #241e2e); }
+.merchant-card.kind-trade .card-face-merchant { background: linear-gradient(160deg, #2f4a3f, #1c2a24); }
+.card-face-effect,
+.card-face-cost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 3px 5px;
+  border-radius: 6px;
+  background: rgba(245, 236, 215, 0.92);
+  max-width: 100%;
+}
+.card-face .crystal-dots {
+  max-width: none;
+  justify-content: center;
+}
+.card-face .dot {
+  width: 11px;
+  height: 11px;
+}
+.card-face-sign,
+.card-face-upgrade {
+  color: #2a241c;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.card-face-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.card-visual.compact .card-face .dot { width: 8px; height: 8px; }
+.card-visual.compact .card-face-label { display: none; }
 
 .card-overlay-topleft {
   position: absolute;

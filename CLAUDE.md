@@ -1,7 +1,11 @@
 # CLAUDE.md — Century: Golem Edition (online multiplayer)
 
-Standing context for Claude Code. Read this before doing anything. `HANDOVER.md`
-in this same folder is the authoritative design doc — consult it for rule details.
+> Context file for Claude Code (the AI coding assistant used to build this
+> project). Its status notes date from August 2026; for the current state see
+> `README.md` and `docs/PROJECT_HANDOVER.md`.
+
+Standing context for Claude Code. Read this before doing anything. `docs/HANDOVER.md`
+is the authoritative design doc — consult it for rule details.
 
 ---
 
@@ -35,7 +39,7 @@ century/
   engine/     century_engine.py, century_cards.py, century_trace.py  (DONE, do not rewrite)
   server/     FastAPI + WebSocket server  (to build)
   web/        React + Vite front-end  (to build)
-  HANDOVER.md authoritative design doc
+  docs/HANDOVER.md authoritative design doc
   CLAUDE.md   this file
 ```
 
@@ -91,7 +95,7 @@ century/
 ## Build order (smallest slice first — do NOT scaffold the whole app at once)
 
 1. **State contract.** The outbound JSON shape of game state + inbound action message
-   types. See `CONTRACT.md`. Everything depends on this — lock it first.
+   types. See `docs/CONTRACT.md`. Everything depends on this — lock it first.
 2. **Server.** FastAPI + WebSockets: one `Game` per room, serialize-and-broadcast on
    change, receive-action → reconstruct → `apply_action` → catch `IllegalAction` →
    rebroadcast. Turn-gating.

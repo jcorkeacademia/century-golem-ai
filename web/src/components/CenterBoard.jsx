@@ -17,7 +17,7 @@ export default function CenterBoard({
   const { golem_row, golem_deck_count, merchant_row, merchant_deck_count, tokens } = state.shared
 
   // Sorted by slot (not by name) so whichever pile currently occupies slot 0
-  // (silver, once copper empties — see CONTRACT.md) floats above the
+  // (silver, once copper empties — see docs/CONTRACT.md) floats above the
   // leftmost golem card.
   const piles = [
     { kind: 'copper', ...tokens.copper },

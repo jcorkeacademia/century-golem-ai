@@ -1,7 +1,7 @@
 """Chained sub-goals: proven-fewest turns to the NEXT golem, six times over.
 
 Full-game optimality is out of reach: the search pays ~x4-8 per turn of slack
-between b and h, and the opening has ~14 (see HANDOFF_search_performance.md).
+between b and h, and the opening has ~14 (see docs/briefs/SOLVER_SEARCH_HANDOFF.md).
 One golem at a time, the slack is a few turns, so each piece can be PROVEN:
 
     from this position, no plan claims one more golem in fewer turns.

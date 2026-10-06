@@ -1,6 +1,14 @@
 # --- Card-art assets ---
-# Generated card PNGs (engine/out*, gol/out*) are tracked — the server serves
-# them. Source photos, backgrounds and print-sheet PDFs stay on disk only.
+# All card art stays on disk only: the face deck uses personal photos and the
+# painted set is the publisher's artwork, so neither belongs in a public repo.
+# Without them the web client draws each card from its data instead
+# (see GolemCard.jsx / MerchantCard.jsx). Regenerate locally with
+# engine/make_cards.py and engine/make_merchants.py.
+engine/out/
+engine/out_merchants/
+engine/cards.csv
+engine/merchants.csv
+gol/
 golem-cards/
 engine/photos/
 engine/photos_merchants/
@@ -47,6 +55,10 @@ results/**
 !results/tune/**/best.json
 results/tune/**/candidates/
 results/tune/**/state.pkl
+
+# --- Player avatars ---
+# Photos are local-only; the client falls back to coloured letter circles.
+web/public/avatars/
 
 # --- Editor / OS ---
 .claude/settings.local.json

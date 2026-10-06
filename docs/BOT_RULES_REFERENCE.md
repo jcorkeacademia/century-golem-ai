@@ -2,10 +2,10 @@
 
 Written for planning bot features. Everything here is grounded in the actual
 implementation (`engine/century_engine.py`, `engine/century_cards.py`,
-`CONTRACT.md`) rather than the abstract rulebook — where this app's rules
+`docs/CONTRACT.md`) rather than the abstract rulebook — where this app's rules
 deviate from the physical game, that's called out explicitly, because those
 deviations change what a bot needs to handle. Cross-references: `CLAUDE.md`
-(engine gotchas), `HANDOVER.md` (original design doc — §7/§8 of that doc are
+(engine gotchas), `docs/HANDOVER.md` (original design doc — §7/§8 of that doc are
 the direct ancestor of this one).
 
 ---
@@ -174,7 +174,7 @@ refills like the merchant row. If this brings your claimed-golem count to
 
 ## 5. Legal-action enumeration (what the bot actually searches over)
 
-`Game.legal_actions()` is the single hook a bot plugs into (`HANDOVER.md`
+`Game.legal_actions()` is the single hook a bot plugs into (`docs/HANDOVER.md`
 already frames it this way) — it doesn't just check "is this move legal," it
 **enumerates every distinct legal move from the current state**, including:
 
@@ -194,7 +194,7 @@ already frames it this way) — it doesn't just check "is this move legal," it
 
 This means the branching factor is **not** "6 action kinds" — it's
 "6 action kinds, several of which explode combinatorially with caravan
-size." `HANDOVER.md` §8.2 already flags this as a known scaling concern:
+size." `docs/HANDOVER.md` §8.2 already flags this as a known scaling concern:
 *"Acquire-payment and upgrade-sequence enumeration grows with caravan size.
 Fine for correctness and small games; the AI's search may need pruning or a
 compressed action representation."* Concretely: a caravan of 10 crystals
@@ -219,9 +219,9 @@ a rough rollout-cost baseline if you're budgeting MCTS iterations.
 Hard cap: **10 crystals total**, enforced automatically at the end of every
 turn (`_enforce_caravan_limit`). **As implemented right now, this auto-drops
 the cheapest crystals** (lowest color index first) rather than letting the
-player choose — `HANDOVER.md` §8.1 flags this explicitly as a simplification
+player choose — `docs/HANDOVER.md` §8.1 flags this explicitly as a simplification
 owed a fix: *"The real rule lets the player choose. For the server/AI,
-surface this as a sub-decision instead of auto-resolving."* `CONTRACT.md`
+surface this as a sub-decision instead of auto-resolving."* `docs/CONTRACT.md`
 already reserves a `pending_decision` shape for it
 (`{"kind": "caravan_discard", ...}`) that the server doesn't emit yet.
 
@@ -298,17 +298,17 @@ Read these before assuming "the bot should model X the way the rulebook
 says," because for several of these, this app made a different call:
 
 1. **Hands are fully public**, by explicit design
-   (`CONTRACT.md`: `"hand": [...] // hands are PUBLIC (design decision)"`).
+   (`docs/CONTRACT.md`: `"hand": [...] // hands are PUBLIC (design decision)"`).
    The physical game has private hands. This is the single biggest
    simplification relevant to bot design — see §11 below, it changes the
    whole information-theoretic shape of the problem.
 2. **Caravan-limit discard is automatic**, not a player choice (§6).
 3. **Crystal supply is unlimited** — no scarcity across players, even though
-   the physical box only has 35Y/30G/20B/20M (`HANDOVER.md` §4, §8.5).
+   the physical box only has 35Y/30G/20B/20M (`docs/HANDOVER.md` §4, §8.5).
 4. **`legal_actions()` fully enumerates** combinatorial options rather than
    letting a UI/agent build them incrementally — a design choice for
    simplicity/correctness, with the scaling caveat in §5.
-5. First-player is always seat 0, never rotates (`CLAUDE.md`/`HANDOVER.md`
+5. First-player is always seat 0, never rotates (`CLAUDE.md`/`docs/HANDOVER.md`
    §8.3) — not a deviation from the physical rules exactly, but a fixed
    assumption baked into `_advance_turn`'s end-of-round detection; don't
    build a "rotating first player" variant without revisiting that code.
@@ -334,7 +334,7 @@ opponent-hand inference, none of the machinery a hidden-information game
 (poker, most deck-builders) needs.
 
 **Not observable, genuinely stochastic**: the **order** of the remaining
-merchant deck and point deck. `CONTRACT.md` is explicit that the server
+merchant deck and point deck. `docs/CONTRACT.md` is explicit that the server
 "never sends deck contents or order — counts only," which is the correct
 fairness stance for human play and the correct *framing* for a bot too: even
 though the engine object technically holds the full remaining deck in
@@ -348,7 +348,7 @@ exactly what's still in the two decks, just not yet in a known order).
 **Net effect for algorithm choice**: this is a **perfect-information,
 stochastic** game from a legitimate bot's point of view — much closer in
 shape to backgammon or a solitaire card-optimization problem than to poker.
-That's exactly why `HANDOVER.md`'s own roadmap (§9, Phase 3) lands on MCTS:
+That's exactly why `docs/HANDOVER.md`'s own roadmap (§9, Phase 3) lands on MCTS:
 `legal_actions()` + `apply_action()` already give a clean simulate/rollout
 interface, and the only randomness a rollout has to sample is "which card
 comes up next," which is drawable from a known-composition, unknown-order
@@ -373,7 +373,7 @@ above, in case it's useful raw material:
   magenta-granting cards are still unseen" has a real, legitimate edge over
   one that doesn't, and it's cheap to maintain incrementally (subtract every
   card as it becomes visible).
-- **Explicit Rest-timing logic** — `HANDOVER.md` §9 already flags this as
+- **Explicit Rest-timing logic** — `docs/HANDOVER.md` §9 already flags this as
   the known weakness of the current baseline bot ("hoards and never rests").
   Given Rest is your *only* card-reuse mechanism, a bot's estimate of
   "expected value of cards currently in played pile, discounted by how many

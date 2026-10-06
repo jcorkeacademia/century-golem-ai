@@ -1,22 +1,26 @@
+// Avatars are coloured letter circles. The original build used photos of
+// friends; those stay out of the public repo. To use photos again, drop
+// PNGs in web/public/avatars/ and set `src: '/avatars/<id>.png'` below.
+//
 // Shared between StartScreen (picking) and the board panels (rendering) so
 // an avatar looks identical everywhere it appears. The choice is made once,
 // at join time (see StartScreen.jsx), sent to the server, and travels with
-// that seat from then on (CONTRACT.md's `avatar` field on `lobby`/`state`)
+// that seat from then on (docs/CONTRACT.md's `avatar` field on `lobby`/`state`)
 // — it isn't re-derived client-side. `src` is a public/ path (Vite serves
 // web/public/avatars/<id>.png at /avatars/<id>.png with no import needed);
 // `name` still exists purely for the aria-label — there's no visible
 // caption under the photo any more (see StartScreen.jsx).
 export const AVATARS = [
-  { id: 'aubin', name: 'aubin', hue: '#D9A441', src: '/avatars/aubin.png' },
-  { id: 'matt', name: 'matt', hue: '#C15A3E', src: '/avatars/matt.png' },
-  { id: 'excel', name: 'excel', hue: '#5B84C4', src: '/avatars/excel.png' },
-  { id: 'justin', name: 'justin', hue: '#5E9E58', src: '/avatars/justin.png' },
-  { id: 'firdaus', name: 'firdaus', hue: '#A45FA8', src: '/avatars/firdaus.png' },
-  { id: 'andrew', name: 'andrew', hue: '#3FA0A0', src: '/avatars/andrew.png' },
-  { id: 'davi', name: 'davi', hue: '#D4708F', src: '/avatars/davi.png' },
-  { id: 'gong', name: 'gong', hue: '#8A6F4E', src: '/avatars/gong.png' },
-  { id: 'aidan', name: 'aidan', hue: '#7A7FCF', src: '/avatars/aidan.png' },
-  { id: 'lyford', name: 'lyford', hue: '#4F6B78', src: '/avatars/lyford.png' },
+  { id: 'amber', name: 'amber', hue: '#D9A441', src: null },
+  { id: 'rust', name: 'rust', hue: '#C15A3E', src: null },
+  { id: 'sky', name: 'sky', hue: '#5B84C4', src: null },
+  { id: 'fern', name: 'fern', hue: '#5E9E58', src: null },
+  { id: 'plum', name: 'plum', hue: '#A45FA8', src: null },
+  { id: 'teal', name: 'teal', hue: '#3FA0A0', src: null },
+  { id: 'rose', name: 'rose', hue: '#D4708F', src: null },
+  { id: 'oak', name: 'oak', hue: '#8A6F4E', src: null },
+  { id: 'iris', name: 'iris', hue: '#7A7FCF', src: null },
+  { id: 'slate', name: 'slate', hue: '#4F6B78', src: null },
 ]
 
 export const AVATAR_BY_ID = Object.fromEntries(AVATARS.map((a) => [a.id, a]))

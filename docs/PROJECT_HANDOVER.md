@@ -34,7 +34,7 @@ An online implementation of the board game *Century: Golem Edition*, built
 multiplayer server and all the AI work sit on top of. The rules are never
 implemented twice.
 
-The project has two goals (from `HANDOVER.md`):
+The project has two goals (from `docs/HANDOVER.md`):
 1. **Play online with friends.** Done.
 2. **Find the most optimal way to play.** The stated priority goal, pursued through two AI tracks.
 
@@ -59,7 +59,7 @@ The two AI tracks ask different questions:
 
 | Date | What happened |
 |---|---|
-| before 15 Sep | Engine, card compendium and tracer written and verified (`HANDOVER.md`). Card art pipeline built (`CARD_ART_HANDOVER.md`). Server and web client built |
+| before 15 Sep | Engine, card compendium and tracer written and verified (`docs/HANDOVER.md`). Card art pipeline built (`docs/CARD_ART_HANDOVER.md`). Server and web client built |
 | 15 Sep | Initial commit: engine, server, web client, design docs. Bot Steps 0–5: orientation, engine prep, solitaire simulator, features, first bots, arena |
 | 16–17 Sep | Step 6: CMA-ES tuning; phase-split weights. Step 7: 18 candidate features screened, all rejected |
 | 18 Sep | Step 8: opponent lookahead (nothing). Step 9: archetypes, 2–5 player matchups |
@@ -79,7 +79,7 @@ The two AI tracks ask different questions:
 ### 3.1 Rules engine (`engine/`)
 
 `century_engine.py` is the single source of truth for the rules. The key API
-(full reference in `HANDOVER.md` §6):
+(full reference in `docs/HANDOVER.md` §6):
 
 - `Game(player_names, seed=None, log=False, merchant_deck=None, point_deck=None, discard_choice=False)`: 1 to 5 players.
 - `game.legal_actions(pruned=False)` enumerates every legal move. `pruned=True` is a smaller, strategically equivalent set for bots.
@@ -106,7 +106,7 @@ PNGs and 45 merchant PNGs (the 43-card deck plus the 2 starting cards), print
 PDFs, and generators (`make_cards.py`, `make_merchants.py`). `card_art.py`
 maps art to engine cards **by content, not by position**, with an audit. The
 source photos and generated PNGs (426 MB) are gitignored and can be
-regenerated. Details are in `CARD_ART_HANDOVER.md`.
+regenerated. Details are in `docs/CARD_ART_HANDOVER.md`.
 
 ### 3.3 Server (`server/`)
 
@@ -114,7 +114,7 @@ FastAPI + plain WebSockets. There is one `Game` per room, and it is the only
 source of truth. Clients send *intents*; the server rebuilds them into engine
 actions (`actions.py`), validates them with `apply_action`, and sends each
 player their own view of the state (`serialize.py`). The message contract is in
-`CONTRACT.md`.
+`docs/CONTRACT.md`.
 
 - **Rooms:** the first person to connect is the host. Others join by code until the game starts (2–5 players). A refresh reconnects to the same seat.
 - **Practice mode** (`?solo=true&players=N&difficulty=`): you against bots, no lobby, and your seat is shuffled. Difficulties are in `bot_policy.py`:
@@ -147,7 +147,7 @@ React 18 + Vite, with one WebSocket per browser.
 
 **Question:** *what actually matters in this game?* Strength was the evidence,
 not the goal. The full write-up is `results/REPORT.md`, which is generated from
-the results files. The original brief is `BOT_IMPLEMENTATION_PROMPT.md`.
+the results files. The original brief is `docs/briefs/BOT_IMPLEMENTATION_PROMPT.md`.
 
 ### 4.1 How it was built
 
@@ -251,7 +251,7 @@ The work grows like (moves per turn) raised to the power (`b` − `h`). With
 proving one seed optimal would take **10¹⁰–10¹³ states: months to centuries**.
 The search can prove optima only about 8 turns from the end.
 
-A second opinion (`solver/HANDOFF_search_performance.md`, and the diagnosis PDF
+A second opinion (`docs/briefs/SOLVER_SEARCH_HANDOFF.md`, and the diagnosis PDF
 now in `solver/`) found the same, and noted that Churchill & Buro never proved
 whole StarCraft games either. Their goals were known in advance and solved in
 time slices. So the result is reported as a **proven bracket**.
@@ -307,7 +307,7 @@ Join through the normal **Join** form (not "Practice solo") with room code
 
 ### 6.3 The full-upgrade house rule
 
-The engine and `HANDOVER.md` say an Upgrade card does "up to N" steps. The
+The engine and `docs/HANDOVER.md` say an Upgrade card does "up to N" steps. The
 client only confirms exactly N, and you confirmed that's the rule you play by.
 So `search.uses_every_step` / `playable_moves` make the solver never propose a
 partial upgrade, and saved plans that broke the rule were rejected and
@@ -388,15 +388,22 @@ bots/       interpretable bot track: sim, features, bots, arena, tune, screen,
             calibrate, make_report, weights/*.json, tests/
 solver/     solo solver: solo, state, bound, flow, greedy, search, fastclone, tiny,
             bench, improve, bracket, calibrate, chain, study, replay_log, plans,
-            guide, tests/, HANDOFF_search_performance.md, diagnosis PDF
+            guide, tests/
 results/    REPORT.md and its JSON (bots); arena/ tune/ screen/ runs;
             solver_bracket, solver_calibration, solver_study (.md + .json);
             solver_logs/ (generated, untracked)
-mockups/    UI mockups
-*.md        HANDOVER (engine), CONTRACT (wire format), CLAUDE (working rules),
-            CARD_ART_HANDOVER, BOT_IMPLEMENTATION_PROMPT, BOT_RULES_REFERENCE,
-            PROJECT_HANDOVER (this file)
+docs/       PROJECT_HANDOVER (this file), HANDOVER (engine), CONTRACT (wire
+            format), CARD_ART_HANDOVER, BOT_RULES_REFERENCE
+docs/briefs/  briefs written for coding agents and second opinions:
+            BOT_IMPLEMENTATION_PROMPT, TUTORIAL_HANDOFF, SOLVER_SEARCH_HANDOFF,
+            the DFBB diagnosis PDF and the tutorial script PDF
+docs/mockups/ UI mockups
+CLAUDE.md   working rules for Claude Code
 ```
+
+Not in the repo: card art (`engine/out*`, `gol/`) and avatar photos
+(`web/public/avatars/`). They stay on the owner's machine; without them
+the client draws cards from their data and uses letter-circle avatars.
 
 ---
 
@@ -435,7 +442,7 @@ mockups/    UI mockups
 - **Kappa retune (bots):** the `best_target` fix is in (off by default). The κ=0.30 retune finished 25 generations (about 79.5% vs hand-set at generation 19). The κ=0 control run **crashed partway** (broken pipe). The head-to-head that would decide whether the fix helps was never run.
 - **Seed 340 bot stall:** every bot (including practice mode's "hard") took 607 turns solo, making and discarding crystals about 390 times. It's a real pathology in solo play and hasn't been investigated.
 - **The yellow/green payment rule** is evidence-backed but unproven. Plans use it, so a plan paying with blue is never considered.
-- **Owed by a human** (`HANDOVER.md` §8): spot-check the four-colour golem costs (#10, #11, #20, #23, #36), and confirm merchant card #14 (`2G → 1M, 2Y`).
+- **Owed by a human** (`docs/HANDOVER.md` §8): spot-check the four-colour golem costs (#10, #11, #20, #23, #36), and confirm merchant card #14 (`2G → 1M, 2Y`).
 
 **Gotchas:**
 - `century_cards.py` and `century_trace.py` import `century_engine` by filename. Keep the three engine files together with their names.
@@ -455,7 +462,7 @@ In rough priority order:
 1. **Try the guided mode in a browser** (`TEST15` is the fastest deal), then commit it. Stage only the guided-mode changes, not your own in-progress edits.
 2. **Solver step 10, the hidden deck.** Replan each turn using only visible cards, then determinization over sampled deck orders. Compare against the step-9 known-deck baseline (33.1 turns). This is what connects the solver to an AI that actually plays well.
 3. **Finish the kappa experiment:** rerun the κ=0 control and play it head to head against the κ=0.30 run.
-4. **A discard prompt in the client**, so normal games can use `discard_choice` too. `CONTRACT.md` already reserves `pending_decision` for it.
+4. **A discard prompt in the client**, so normal games can use `discard_choice` too. `docs/CONTRACT.md` already reserves `pending_decision` for it.
 5. **The lower bound** (research): the one route to proving full-game optima. It has to capture why real turns add about 3–5 value when the bound allows 10.
 6. Investigate the **seed 340** bot stall.
 
@@ -465,17 +472,17 @@ In rough priority order:
 
 | Document | What's in it |
 |---|---|
-| `PROJECT_HANDOVER.md` | This overview |
-| `HANDOVER.md` | Engine design, rules as implemented, API, open TODOs |
-| `CONTRACT.md` | Client/server message contract, including practice mode |
+| `docs/PROJECT_HANDOVER.md` | This overview |
+| `docs/HANDOVER.md` | Engine design, rules as implemented, API, open TODOs |
+| `docs/CONTRACT.md` | Client/server message contract, including practice mode |
 | `CLAUDE.md` | Working rules for AI assistants on this repo |
-| `CARD_ART_HANDOVER.md` | Card art pipeline and art↔card mapping |
-| `BOT_IMPLEMENTATION_PROMPT.md`, `BOT_RULES_REFERENCE.md` | The bot track's brief and rules reference |
+| `docs/CARD_ART_HANDOVER.md` | Card art pipeline and art↔card mapping |
+| `docs/briefs/BOT_IMPLEMENTATION_PROMPT.md`, `docs/BOT_RULES_REFERENCE.md` | The bot track's brief and rules reference |
 | `bots/API_NOTES.md` | Engine-API findings from bot Step 0 |
 | `results/REPORT.md` | What the bots learned, with every number sourced |
 | `results/solver_bracket.md` | Proven lower and upper bounds per seed |
 | `results/solver_calibration.md` | Where the gap lies, measured on small goals |
 | `results/solver_study.md` | What near-optimal solo plans do (500 seeds) |
-| `solver/HANDOFF_search_performance.md` | Why DFBB stalls on Century: the question put to a second opinion |
-| `solver/Why DFBB Stalls on Century — Diagnosis and Plan.pdf` | That second opinion's answer |
+| `docs/briefs/SOLVER_SEARCH_HANDOFF.md` | Why DFBB stalls on Century: the question put to a second opinion |
+| `docs/briefs/why-dfbb-stalls.pdf` | That second opinion's answer |
 | "Century Solo Solver — Design Handover" (PDF, outside the repo) | The solver's original design and roadmap |

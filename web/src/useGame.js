@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { createGameConnection } from './connection.js'
 
 // One socket, for this browser's own seat (see connection.js). `state` is
-// the full post-game-start snapshot (CONTRACT.md 1a, never diffed); `lobby`
+// the full post-game-start snapshot (docs/CONTRACT.md 1a, never diffed); `lobby`
 // is the pre-start seat list (1d) — the caller renders one or the other
 // depending on which has arrived. `sendAction` no longer has to pick a
 // socket by seat (there's only ever the one), so a click made on the wrong

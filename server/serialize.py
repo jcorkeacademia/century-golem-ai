@@ -1,4 +1,4 @@
-"""Game -> outbound `state` message, per CONTRACT.md 1a."""
+"""Game -> outbound `state` message, per docs/CONTRACT.md 1a."""
 
 from __future__ import annotations
 
@@ -199,7 +199,7 @@ def game_to_state(room: Room, viewer_seat: int | None) -> dict:
         },
         "players": players,
         # No server-side partial-action state exists yet: acquire/upgrade
-        # answers ride on the same action that opens them (see CONTRACT.md
+        # answers ride on the same action that opens them (see docs/CONTRACT.md
         # 1b/2), and caravan_discard needs an engine change we're not making.
         # So this is always null for now.
         "pending_decision": None,
