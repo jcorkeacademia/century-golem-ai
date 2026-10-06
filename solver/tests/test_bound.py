@@ -332,9 +332,9 @@ def test_play_gain_honours_the_limit_on_the_way_out():
 
 
 def test_the_best_card_play_adds_ten():
-    """Measured tight: trades like 4Y->3B reach exactly this in real play."""
+    """Measured tight: trades like 2Y->2G reach exactly this in real play."""
     assert g_play(Crystal.MAGENTA) == 10
-    assert play_gain(named("4Y->3B")) == 10
+    assert play_gain(named("2Y->2G")) == 10
 
 
 def test_crystal_and_upgrade_cards_are_unchanged():

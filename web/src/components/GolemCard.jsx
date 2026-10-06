@@ -18,7 +18,7 @@ export default function GolemCard({ card, onClick, showPoints = true, title }) {
           : <GolemFace card={card} />}
       </div>
 
-      {showPoints && (
+      {showPoints && card.art && (
         <div className="card-overlay-topright">
           <span className="points-badge">{card.points}</span>
         </div>

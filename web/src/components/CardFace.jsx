@@ -6,11 +6,12 @@ import CrystalDots from './CrystalDots.jsx'
 // photos; the painted set is the publisher's artwork), so on a fresh clone
 // every card arrives with art === null. Everything a player needs is already
 // in the card's data, so the face is rebuilt from it: a golem's cost along
-// the bottom (its points badge is drawn by GolemCard), a merchant's effect
+// the bottom and its points in the middle, a merchant's effect
 // across the top where the printed strip would be.
 export function GolemFace({ card }) {
   return (
     <div className="card-face card-face-golem">
+      <span className="card-face-points">{card.points}</span>
       <span className="card-face-label">Golem</span>
       <div className="card-face-cost">
         <CrystalDots bundle={card.cost} cap={10} />

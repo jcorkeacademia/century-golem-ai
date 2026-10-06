@@ -1513,9 +1513,18 @@ body {
 }
 .card-face-golem {
   background: linear-gradient(160deg, #3b4a5e, #222b38);
-  justify-content: flex-end;
-  gap: 18%;
+  gap: 6%;
 }
+.card-face-points {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.9rem;
+  font-weight: 700;
+  color: #f5ecd7;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  margin-bottom: auto;
+  margin-top: 18%;
+}
+.card-visual.compact .card-face-points { font-size: 1.2rem; }
 .card-face-merchant { background: linear-gradient(160deg, #4a3f30, #2a241c); }
 .merchant-card.kind-upgrade .card-face-merchant { background: linear-gradient(160deg, #3f3550, #241e2e); }
 .merchant-card.kind-trade .card-face-merchant { background: linear-gradient(160deg, #2f4a3f, #1c2a24); }
@@ -1553,6 +1562,26 @@ body {
   color: rgba(255, 255, 255, 0.55);
 }
 .card-visual.compact .card-face .dot { width: 8px; height: 8px; }
+/* Small tiles (opponent panels, golem slots): shrink the drawn face. */
+.card-face { container-type: size; }
+@container (max-width: 80px) {
+  .card-face { padding: 7% 5%; }
+  .card-face-label { display: none; }
+  .card-face-points { font-size: 1.15rem; margin-top: 10%; }
+  .card-face-effect, .card-face-cost { padding: 2px 3px; gap: 2px; border-radius: 4px; }
+  .card-face .crystal-dots { gap: 1px; }
+  .card-face .dot { width: 7px; height: 7px; }
+  .card-face-sign { font-size: 0.55rem; }
+  .card-face-upgrade { font-size: 0.5rem; }
+}
+@container (max-width: 48px) {
+  .card-face-points { font-size: 0.85rem; }
+  .card-face-effect, .card-face-cost { padding: 1px; gap: 1px; border-radius: 2px; }
+  .card-face .dot { width: 4px; height: 4px; }
+  .card-face-sign { font-size: 0.4rem; }
+  .card-face-upgrade { font-size: 0.35rem; }
+}
+
 .card-visual.compact .card-face-label { display: none; }
 
 .card-overlay-topleft {

@@ -17,10 +17,10 @@ export const AVATARS = [
   { id: 'fern', name: 'fern', hue: '#5E9E58', src: null },
   { id: 'plum', name: 'plum', hue: '#A45FA8', src: null },
   { id: 'teal', name: 'teal', hue: '#3FA0A0', src: null },
-  { id: 'rose', name: 'rose', hue: '#D4708F', src: null },
+  { id: 'coral', name: 'coral', hue: '#D4708F', src: null },
   { id: 'oak', name: 'oak', hue: '#8A6F4E', src: null },
   { id: 'iris', name: 'iris', hue: '#7A7FCF', src: null },
-  { id: 'slate', name: 'slate', hue: '#4F6B78', src: null },
+  { id: 'dusk', name: 'dusk', hue: '#4F6B78', src: null },
 ]
 
 export const AVATAR_BY_ID = Object.fromEntries(AVATARS.map((a) => [a.id, a]))
