@@ -2,7 +2,8 @@
 
 import pytest
 
-import tutorial as T
+import tutorial as T  # imports engine_path, which puts engine/ on sys.path
+import card_art
 from century_engine import Game
 from actions import build_action
 from rooms import Room
@@ -16,6 +17,14 @@ def session():
 
 # One right answer per objective, in OBJECTIVES order.
 ANSWERS = [["Y", "Y"], ["G", "B"], ["Y", "G"]]
+
+# Card art is local-only (not in the public repo), so tests about which art a
+# card gets only run where the art has been generated.
+needs_photo_art = pytest.mark.skipif(
+    not any(card_art.GOLEM_DIR.glob("*.png")), reason="card art not generated locally")
+needs_painted_art = pytest.mark.skipif(
+    not (any(card_art.GOL_GOLEM_DIR.glob("*.png")) if card_art.GOL_GOLEM_DIR.exists() else False),
+    reason="painted card art not present locally")
 
 
 def go_to(session, step_id):
@@ -196,6 +205,8 @@ def test_ordinary_rooms_have_no_tutorial_field():
     assert "tutorial" not in game_to_state(room, 0)
 
 
+@needs_photo_art
+@needs_painted_art
 def test_tutorial_codes_show_the_painted_art():
     """The client gives tutorials 6-character codes (App.jsx) so the board
     and the staged cards show the painted set, not the photo set."""
@@ -218,6 +229,7 @@ def test_gem_order_keeps_the_caravan_text_above_it(session):
         {"id": "caravan", "title": caravan["title"], "paragraphs": caravan["paragraphs"], "instruction": None, "refusal": None}]
 
 
+@needs_photo_art
 def test_staged_cards_have_art(session):
     go_to(session, "card_types")
     cards = session.view()["stage_data"]["cards"]
