@@ -12,6 +12,7 @@ export default function CenterBoard({
   hoverSlot = null,
   missingSlots,
   interactive = true,
+  guideAction = null, // guided TEST rooms only: the plan's next move
 }) {
   const { golem_row, golem_deck_count, merchant_row, merchant_deck_count, tokens } = state.shared
 
@@ -29,7 +30,10 @@ export default function CenterBoard({
         <div className="deck-row golem-deck-row">
           <div className="card-row">
             {golem_row.map((card, i) => (
-              <div className="golem-slot-wrap" key={card.slot}>
+              <div
+                className={`golem-slot-wrap${guideAction?.kind === 'claim' && guideAction.row_index === card.slot ? ' guide-target' : ''}`}
+                key={card.slot}
+              >
                 {piles[i] && <TokenPile pile={piles[i]} />}
                 <GolemCard card={card} onClick={interactive ? () => onClaim(card.slot, card) : undefined} showPoints={false} />
               </div>
@@ -48,6 +52,7 @@ export default function CenterBoard({
                 isDraggingCrystal && 'acquire-dropzone',
                 hoverSlot === card.slot && 'acquire-dropzone-hover',
                 isMissing && 'acquire-missing',
+                guideAction?.kind === 'acquire' && guideAction.row_index === card.slot && 'guide-target',
               ]
                 .filter(Boolean)
                 .join(' ')

@@ -122,6 +122,28 @@ def cheap_payments(game: Game) -> list[Action]:
                     and any(c > Crystal.GREEN for c in a.payment))]
 
 
+def uses_every_step(game: Game, action: Action) -> bool:
+    """False for an upgrade that spends fewer steps than its card has.
+
+    The house rule (the user's, 2026-09-27): an Upgrade card must be used in
+    full — Upgrade 2 upgrades exactly two steps, Upgrade 3 exactly three.
+    The engine and HANDOVER.md say "up to N, each optional", but the web
+    client's Confirm button only enables at exactly N picks, so a plan with a
+    partial upgrade is one a player cannot actually make in the game. The
+    engine is deliberately left alone; the solver just never proposes it.
+    """
+    if not isinstance(action, PlayUpgrade):
+        return True
+    return len(action.upgrades) == game.player.hand[action.hand_index].steps
+
+
+def playable_moves(game: Game) -> list[Action]:
+    """The default move list for making plans: cheap_payments, and upgrades
+    only when they use every step (uses_every_step). Every plan found with
+    it is one a player can click through in the web client."""
+    return [a for a in cheap_payments(game) if uses_every_step(game, a)]
+
+
 def claims_first(game: Game, actions: list[Action]) -> list[Action]:
     """Try every Claim before anything else. A claim is the only move that
     moves you toward the goal directly, so it finds short wins soonest."""

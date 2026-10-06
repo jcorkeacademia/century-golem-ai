@@ -8,7 +8,7 @@ import { createGameConnection } from './connection.js'
 // socket by seat (there's only ever the one), so a click made on the wrong
 // turn just rides this same socket to the server and comes back
 // `not_your_turn`, same as any other rejected action.
-export function useGame({ serverUrl, roomId, name, avatarId, solo = false, playerCount, difficulty, attempt = 0, enabled = true }) {
+export function useGame({ serverUrl, roomId, name, avatarId, solo = false, playerCount, difficulty, tutorial = false, attempt = 0, enabled = true }) {
   const [state, setState] = useState(null)
   // performance.now() the instant each `state` lands — TurnClock.jsx adds
   // its own elapsed-since-then on top of the server's last reported figure,
@@ -37,6 +37,7 @@ export function useGame({ serverUrl, roomId, name, avatarId, solo = false, playe
       solo,
       playerCount,
       difficulty,
+      tutorial,
       onState: (msg) => {
         setState(msg)
         setStateReceivedAt(performance.now())
@@ -51,7 +52,7 @@ export function useGame({ serverUrl, roomId, name, avatarId, solo = false, playe
     // exact same name/room (e.g. after a rejected join) still forces a
     // brand new connection instead of being a no-op dependency-wise.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serverUrl, roomId, name, avatarId, solo, playerCount, difficulty, attempt, enabled])
+  }, [serverUrl, roomId, name, avatarId, solo, playerCount, difficulty, tutorial, attempt, enabled])
 
   const sendAction = useCallback((action) => {
     connRef.current?.send(action)

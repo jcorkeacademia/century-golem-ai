@@ -11,7 +11,7 @@ const CHECK_PATH = 'M5 12.5 10 17.5 19 7'
 // or JOIN (a typed code). The choice travels to the server as part of
 // connecting (CONTRACT.md's `?avatar=`) and from there is just another
 // field on that seat, same as `name` — every other client sees it too.
-export default function StartScreen({ initialError, onSubmit, onSoloSubmit }) {
+export default function StartScreen({ initialError, onSubmit, onSoloSubmit, onTutorialSubmit }) {
   const [name, setName] = useState('')
   const [roomCode, setRoomCode] = useState('')
   const [avatarId, setAvatarId] = useState(null)
@@ -43,16 +43,16 @@ export default function StartScreen({ initialError, onSubmit, onSoloSubmit }) {
   // skips the room-code field entirely — same name/avatar validation as a
   // real join, just routed to a solo room instead (see App.jsx).
   function handleSoloSubmit() {
-    const trimmed = name.trim()
-    if (!trimmed) {
-      setError('Enter a name.')
-      return
-    }
-    if (!avatarId) {
-      setError('Choose an avatar.')
-      return
-    }
-    onSoloSubmit(trimmed, avatarId, soloBots + 1, soloSkill)
+    // Against bots a name/avatar is irrelevant, so both are optional here.
+    const chosen = avatarId || AVATARS[Math.floor(Math.random() * AVATARS.length)].id
+    onSoloSubmit(name.trim() || 'You', chosen, soloBots + 1, soloSkill)
+  }
+
+  // The interactive tutorial (server/tutorial.py) — no other players, so
+  // like practice mode a name and avatar are optional.
+  function handleTutorialSubmit() {
+    const chosen = avatarId || AVATARS[Math.floor(Math.random() * AVATARS.length)].id
+    onTutorialSubmit(name.trim() || 'You', chosen)
   }
 
   // Ten real photos are a lot heavier than the old inline-SVG glyphs — kick
@@ -193,12 +193,21 @@ export default function StartScreen({ initialError, onSubmit, onSoloSubmit }) {
                 <option value="medium">Medium</option>
                 <option value="hard">Hard</option>
               </select>
-              <button type="button" className="join-btn join-btn-secondary" disabled={!canSubmit} onClick={handleSoloSubmit}>
+              <button type="button" className="join-btn join-btn-secondary" onClick={handleSoloSubmit}>
                 Practice solo
               </button>
             </div>
           </div>
         </div>
+
+        {onTutorialSubmit && (
+          <div className="join-howto">
+            <span>New to Century?</span>
+            <button type="button" className="join-howto-btn" onClick={handleTutorialSubmit}>
+              How to play
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -40,6 +40,20 @@ ws://<server>/ws/<room_id>?name=<name>&avatar=<avatar_id>
 The difficulty is fixed when the room is created and kept for the life of the
 game, so a mid-game reconnect cannot silently change opponent.
 
+**Interactive tutorial** (`server/tutorial.py`) is one more optional param, and
+like practice mode it skips the lobby:
+
+```
+ws://<server>/ws/<room_id>?name=<name>&avatar=<avatar_id>&tutorial=true
+```
+
+You are always seat 0 of a 2-player game replayed from a recorded game
+(`server/tutorial_recording.json`). Every `state` carries an extra
+`tutorial` field (§1e); no other room ever does. The client uses a
+6-character room code, which shows the painted card art (any code of 5 or
+more characters does, see `server/card_art_index.py`). Tutorials are keyed by
+room code and name, so a refresh resumes at the same step.
+
 ---
 
 ## Message envelope
@@ -168,7 +182,8 @@ Codes: `illegal_action` (engine raised `IllegalAction`), `not_your_turn`,
 `malformed`, `game_over`, `name_taken` (that seat's socket is already live),
 `already_started` (a new name tried to join a room whose game has started),
 `room_full` (room already has 5 players), `not_host` (non-seat-0 sent `start`),
-`not_enough_players` (`start` sent with fewer than 2 or more than 5 names).
+`not_enough_players` (`start` sent with fewer than 2 or more than 5 names),
+`tutorial` (tutorial rooms only: not what the current step asks for, see §2).
 
 ### 1d. `lobby` — pre-game room state (sent on connect and whenever the seat list
 changes, until the game starts)
@@ -184,6 +199,68 @@ changes, until the game starts)
 that name joined earlier but its socket has since dropped — the seat is still theirs
 (they can reconnect with the same name), it just isn't held open right now. `host` is
 always `0`: only that seat may send `start`.
+
+### 1e. `tutorial` — the tutorial's current step (tutorial rooms only)
+
+An extra field on `state`, present only when connected with `?tutorial=true`.
+Ordinary, practice and guided rooms never carry it.
+
+```json
+"tutorial": {
+  "id": "pay",                    // the step's id in server/tutorial.py's STEPS
+  "step": 8, "total": 14,         // "Step 8 of 14"
+  "scene": 6,                     // scene number in the tutorial design doc
+  "title": "Skipping ahead",
+  "paragraphs": ["To take a card further along, …"],
+  "instruction": "Try it: drag a yellow gem onto …",
+                                  // the exact move a step wants, or null
+  "refusal": "Not that one. Drag a yellow gem onto …",
+                                  // what a wrong move is told (sent ahead, so the
+                                  // box can hold room for the longer line), or null
+  "earlier": [ <section> ],       // the step this one continues in the same box
+  "later": [ <section> ],         // the step that will continue this one
+  "stage": null,                  // null = the live board; otherwise a staged screen
+                                  // drawn over it: "title" | "caravan" | "order"
+                                  // | "upgrade" | "turn" | "cards"
+  "stage_data": null,             // what that staged screen shows, see below
+  "highlight": "merchant_card",   // null | "merchant_row" | "merchant_card" | "me_mat"
+                                  // | "played" | "reset" | "golem_row"
+  "highlight_slot": 2,            // merchant_card only: which slot to circle
+  "anchor": "merchant_row",       // board steps: the part of the board the box is
+                                  // placed against — "merchant_row" | "mat" |
+                                  // "golem_row" — or null (centred)
+  "wait": "action",               // what ends the step:
+                                  //   "next"      the player clicks Next (tutorial_next)
+                                  //   "action"    the player makes `target`, exactly
+                                  //   "upgrade"   the upgrade exercise (play_upgrade)
+                                  //   "busy"      the server is replaying moves; wait
+                                  //   "free_play" ordinary play until game_over
+  "target": { "kind": "acquire", "row_index": 2, "payment": ["Y","Y"] },
+                                  // same shape as state.guide.action, or null
+  "feedback": null                // or { "ok": false, "text": "Not quite …" }
+}
+```
+
+A `<section>` is one step's words: `{ "id", "title", "paragraphs", "instruction", "refusal" }`.
+
+**Shared boxes.** Some steps continue the step before them in the same box:
+scenes 2-5 (caravan → gem order → upgrade → recap → one thing per turn),
+merchant cards → skipping ahead, and played cards → reset. `earlier` holds the
+step before (one step back only, so the oldest words drop off as the page moves
+on); `[]` when a box starts. `later` holds the step that will follow in the
+same box; it is never shown, but lets the client size the box for both steps
+from the start, so nothing moves when the second step's words appear. Both are
+sent with every state rather than remembered, so a refresh shows the same box.
+
+`stage_data` by `stage`, with crystal bundles and cards in the §1a shapes:
+
+| `stage` | `stage_data` |
+|---|---|
+| `title` | `null` |
+| `caravan`, `turn` | `{ "caravan": {Y,G,B,M} }` |
+| `order` | `{ "caravan": {…}, "card": <card> }` |
+| `upgrade` | `{ "caravan": {…}, "card": <card>, "objectives": [{ "text": "…", "done": false }], "attempt": 0 }` — objectives can be done in any order; `attempt` goes up every time the caravan is reset, so the client can clear its picks |
+| `cards` | `{ "cards": [{ "card": <card>, "heading": "Crystal", "text": "…" }] }` |
 
 ---
 
@@ -232,6 +309,19 @@ Connecting note above `?name=`). The only lobby action is:
 Only seat 0 (the host) may send it, and only while `room.started` is false with
 2-5 names already joined; it constructs the `Game` and the room's normal `state`
 broadcasts take over from there.
+
+### Tutorial
+
+```json
+{ "type": "tutorial_next" }
+```
+
+Ends a step whose `wait` is `"next"`. During the upgrade exercise
+(`wait: "upgrade"`), `play_upgrade` with `hand_index: 0` is checked against a
+separate sandbox game holding the exercise caravan, never the recorded game.
+Any other action is accepted only when it is the step's `target` (`wait:
+"action"`) or during `"free_play"`; otherwise the reply is
+`error` with code `tutorial` and a message saying what to do instead.
 
 ---
 

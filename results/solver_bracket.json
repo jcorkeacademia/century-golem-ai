@@ -108,15 +108,11 @@
      "times": 2
     },
     {
-     "play": "crystal",
-     "hand": 0
-    },
-    {
      "claim": 0
     },
     {
      "play": "trade",
-     "hand": 0,
+     "hand": 1,
      "times": 2
     },
     {
@@ -127,45 +123,50 @@
     },
     {
      "play": "crystal",
-     "hand": 5
+     "hand": 1
+    },
+    {
+     "rest": true
     },
     {
      "play": "crystal",
-     "hand": 0
-    },
-    {
-     "discard": [
-      1,
-      0,
-      0,
-      0
-     ]
+     "hand": 6
     },
     {
      "play": "trade",
-     "hand": 0,
+     "hand": 1,
      "times": 2
     },
     {
      "play": "trade",
-     "hand": 0,
-     "times": 3
+     "hand": 1,
+     "times": 4
+    },
+    {
+     "discard": [
+      1,
+      1,
+      0,
+      0
+     ]
     },
     {
      "claim": 4
     },
     {
      "play": "upgrade",
-     "hand": 0,
+     "hand": 1,
      "upgrades": [
-      1
+      1,
+      2
      ]
     },
     {
      "claim": 2
     }
    ],
-   "seconds": 458
+   "seconds": 297,
+   "cards": "c68d7538a56b"
   },
   {
    "seed": 1,
@@ -182,8 +183,13 @@
    },
    "plan": [
     {
-     "acquire": 2,
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "acquire": 3,
      "payment": [
+      0,
       0,
       0
      ]
@@ -193,8 +199,14 @@
      "payment": []
     },
     {
-     "acquire": 2,
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "acquire": 4,
      "payment": [
+      0,
+      0,
       0,
       0
      ]
@@ -212,10 +224,6 @@
      ]
     },
     {
-     "acquire": 0,
-     "payment": []
-    },
-    {
      "acquire": 2,
      "payment": [
       0,
@@ -223,14 +231,8 @@
      ]
     },
     {
-     "acquire": 1,
-     "payment": [
-      0
-     ]
-    },
-    {
-     "play": "crystal",
-     "hand": 6
+     "acquire": 0,
+     "payment": []
     },
     {
      "acquire": 0,
@@ -238,7 +240,7 @@
     },
     {
      "play": "trade",
-     "hand": 2,
+     "hand": 6,
      "times": 2
     },
     {
@@ -258,7 +260,7 @@
     },
     {
      "play": "trade",
-     "hand": 2,
+     "hand": 3,
      "times": 2
     },
     {
@@ -344,7 +346,8 @@
      "claim": 4
     }
    ],
-   "seconds": 641
+   "seconds": 436,
+   "cards": "c68d7538a56b"
   },
   {
    "seed": 2,
@@ -357,7 +360,7 @@
    "candidates": {
     "bots": 42,
     "beam3000+repair": 31,
-    "chain": 49
+    "chain": 44
    },
    "plan": [
     {
@@ -480,15 +483,15 @@
      "times": 3
     },
     {
+     "claim": 4
+    },
+    {
      "play": "upgrade",
      "hand": 1,
      "upgrades": [
       0,
       2
      ]
-    },
-    {
-     "claim": 4
     },
     {
      "play": "crystal",
@@ -516,7 +519,8 @@
      "claim": 2
     }
    ],
-   "seconds": 506
+   "seconds": 284,
+   "cards": "c68d7538a56b"
   },
   {
    "seed": 3,
@@ -529,7 +533,7 @@
    "candidates": {
     "bots": 40,
     "beam3000+repair": 32,
-    "chain": 37
+    "chain": 40
    },
    "plan": [
     {
@@ -540,8 +544,10 @@
      ]
     },
     {
-     "play": "crystal",
-     "hand": 0
+     "acquire": 1,
+     "payment": [
+      0
+     ]
     },
     {
      "acquire": 1,
@@ -550,38 +556,17 @@
      ]
     },
     {
-     "acquire": 3,
-     "payment": [
-      0,
-      0,
-      0
-     ]
-    },
-    {
-     "acquire": 0,
-     "payment": []
-    },
-    {
-     "acquire": 0,
-     "payment": []
+     "play": "crystal",
+     "hand": 4
     },
     {
      "play": "trade",
-     "hand": 3,
+     "hand": 2,
      "times": 1
     },
     {
-     "play": "trade",
-     "hand": 3,
-     "times": 3
-    },
-    {
-     "acquire": 0,
-     "payment": []
-    },
-    {
      "play": "upgrade",
-     "hand": 0,
+     "hand": 1,
      "upgrades": [
       1,
       1
@@ -590,6 +575,14 @@
     {
      "play": "trade",
      "hand": 1,
+     "times": 1
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 2,
      "times": 2
     },
     {
@@ -597,21 +590,30 @@
      "hand": 1
     },
     {
-     "claim": 4
-    },
-    {
-     "play": "trade",
-     "hand": 0,
-     "times": 2
-    },
-    {
-     "acquire": 4,
-     "payment": [
-      0,
-      0,
-      0,
-      0
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      1,
+      1
      ]
+    },
+    {
+     "claim": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "upgrade",
+     "hand": 4,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
     },
     {
      "play": "trade",
@@ -619,73 +621,46 @@
      "times": 3
     },
     {
-     "discard": [
-      2,
-      0,
-      0,
-      0
-     ]
-    },
-    {
-     "rest": true
-    },
-    {
-     "play": "trade",
-     "hand": 5,
-     "times": 3
-    },
-    {
-     "claim": 3
-    },
-    {
-     "play": "trade",
-     "hand": 6,
-     "times": 2
-    },
-    {
-     "play": "trade",
-     "hand": 6,
-     "times": 2
-    },
-    {
-     "discard": [
-      3,
-      0,
-      0,
-      0
-     ]
-    },
-    {
-     "play": "trade",
-     "hand": 2,
-     "times": 2
-    },
-    {
-     "claim": 0
-    },
-    {
-     "play": "trade",
-     "hand": 2,
-     "times": 3
+     "claim": 2
     },
     {
      "play": "crystal",
-     "hand": 3
+     "hand": 2
     },
     {
      "rest": true
     },
     {
      "play": "crystal",
-     "hand": 8
+     "hand": 5
     },
     {
-     "discard": [
+     "play": "trade",
+     "hand": 1,
+     "times": 2
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "upgrade",
+     "hand": 2,
+     "upgrades": [
       1,
-      0,
-      0,
-      0
+      1
      ]
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 0
     },
     {
      "claim": 3
@@ -693,6 +668,11 @@
     {
      "play": "crystal",
      "hand": 1
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 2
     },
     {
      "play": "upgrade",
@@ -709,27 +689,66 @@
      "claim": 4
     }
    ],
-   "seconds": 596
+   "seconds": 254,
+   "cards": "c68d7538a56b"
   },
   {
    "seed": 4,
    "lower": 18,
    "lower_h": 16,
    "lower_flow": 18,
-   "upper": 38,
-   "upper_method": "beam3000+repair",
-   "gap": 20,
+   "upper": 35,
+   "upper_method": "chain",
+   "gap": 17,
    "candidates": {
     "bots": 50,
-    "beam3000+repair": 38,
-    "chain": 42
+    "beam3000+repair": 37,
+    "chain": 35
    },
    "plan": [
     {
-     "acquire": 1,
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "acquire": 5,
      "payment": [
+      0,
+      0,
+      0,
+      0,
       0
      ]
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "play": "upgrade",
+     "hand": 0,
+     "upgrades": [
+      0,
+      0
+     ]
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      0,
+      0
+     ]
+    },
+    {
+     "claim": 2
     },
     {
      "acquire": 0,
@@ -737,139 +756,43 @@
     },
     {
      "play": "crystal",
-     "hand": 3
-    },
-    {
-     "acquire": 3,
-     "payment": [
-      0,
-      0,
-      0
-     ]
-    },
-    {
-     "play": "crystal",
-     "hand": 3
+     "hand": 1
     },
     {
      "rest": true
     },
     {
      "play": "crystal",
-     "hand": 4
+     "hand": 1
     },
     {
      "play": "crystal",
-     "hand": 3
+     "hand": 2
     },
     {
      "play": "upgrade",
      "hand": 1,
-     "upgrades": [
-      1,
-      2
-     ]
-    },
-    {
-     "rest": true
-    },
-    {
-     "play": "crystal",
-     "hand": 3
-    },
-    {
-     "play": "upgrade",
-     "hand": 3,
      "upgrades": [
       2,
       2
      ]
     },
     {
-     "claim": 1
-    },
-    {
-     "play": "crystal",
-     "hand": 2
+     "claim": 4
     },
     {
      "rest": true
     },
     {
      "play": "crystal",
-     "hand": 4
-    },
-    {
-     "acquire": 1,
-     "payment": [
-      1
-     ]
-    },
-    {
-     "play": "trade",
-     "hand": 4,
-     "times": 4
-    },
-    {
-     "play": "crystal",
-     "hand": 2
+     "hand": 1
     },
     {
      "play": "upgrade",
      "hand": 2,
      "upgrades": [
       1,
-      2
-     ]
-    },
-    {
-     "rest": true
-    },
-    {
-     "claim": 0
-    },
-    {
-     "play": "crystal",
-     "hand": 4
-    },
-    {
-     "play": "crystal",
-     "hand": 0
-    },
-    {
-     "play": "upgrade",
-     "hand": 3,
-     "upgrades": [
-      0,
-      2
-     ]
-    },
-    {
-     "play": "trade",
-     "hand": 0,
-     "times": 2
-    },
-    {
-     "claim": 0
-    },
-    {
-     "play": "crystal",
-     "hand": 0
-    },
-    {
-     "rest": true
-    },
-    {
-     "play": "trade",
-     "hand": 0,
-     "times": 3
-    },
-    {
-     "play": "upgrade",
-     "hand": 2,
-     "upgrades": [
-      0,
-      2
+      1
      ]
     },
     {
@@ -880,25 +803,74 @@
      "hand": 1
     },
     {
-     "play": "crystal",
-     "hand": 0
-    },
-    {
-     "claim": 3
+     "rest": true
     },
     {
      "play": "crystal",
      "hand": 1
     },
     {
-     "acquire": 0,
-     "payment": []
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      0,
+      2
+     ]
     },
     {
-     "claim": 3
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "claim": 4
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      0,
+      2
+     ]
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      0,
+      2
+     ]
+    },
+    {
+     "claim": 4
     }
    ],
-   "seconds": 670
+   "seconds": 379,
+   "cards": "c68d7538a56b"
   },
   {
    "seed": 5,
@@ -915,13 +887,9 @@
    },
    "plan": [
     {
-     "acquire": 0,
-     "payment": []
-    },
-    {
-     "acquire": 3,
-     "payment": [
-      0,
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
       0,
       0
      ]
@@ -931,29 +899,40 @@
      "payment": []
     },
     {
-     "play": "upgrade",
-     "hand": 3,
-     "upgrades": [
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "acquire": 2,
+     "payment": [
       0,
+      1
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 2,
+     "upgrades": [
       1,
+      2,
       2
      ]
     },
     {
      "play": "trade",
-     "hand": 2,
-     "times": 1
-    },
-    {
-     "play": "crystal",
-     "hand": 2
+     "hand": 1,
+     "times": 2
     },
     {
      "rest": true
     },
     {
      "play": "upgrade",
-     "hand": 2,
+     "hand": 3,
      "upgrades": [
       2,
       2,
@@ -962,12 +941,8 @@
     },
     {
      "play": "trade",
-     "hand": 2,
+     "hand": 3,
      "times": 3
-    },
-    {
-     "play": "crystal",
-     "hand": 2
     },
     {
      "acquire": 0,
@@ -975,22 +950,15 @@
     },
     {
      "play": "trade",
-     "hand": 2,
+     "hand": 3,
      "times": 2
     },
     {
      "claim": 1
     },
     {
-     "play": "crystal",
-     "hand": 0
-    },
-    {
-     "rest": true
-    },
-    {
      "play": "upgrade",
-     "hand": 0,
+     "hand": 1,
      "upgrades": [
       1,
       2
@@ -998,10 +966,17 @@
     },
     {
      "play": "crystal",
-     "hand": 2
+     "hand": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 0
     },
     {
      "claim": 0
+    },
+    {
+     "rest": true
     },
     {
      "play": "upgrade",
@@ -1027,7 +1002,7 @@
     },
     {
      "play": "crystal",
-     "hand": 0
+     "hand": 1
     },
     {
      "rest": true
@@ -1041,17 +1016,19 @@
      "claim": 0
     },
     {
-     "play": "crystal",
-     "hand": 4
-    },
-    {
      "play": "upgrade",
-     "hand": 2,
+     "hand": 0,
      "upgrades": [
-      0,
       0,
       0
      ]
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "claim": 4
     },
     {
      "acquire": 0,
@@ -1059,12 +1036,10 @@
     },
     {
      "claim": 4
-    },
-    {
-     "claim": 4
     }
    ],
-   "seconds": 461
+   "seconds": 197,
+   "cards": "c68d7538a56b"
   },
   {
    "seed": 6,
@@ -1229,36 +1204,32 @@
      "claim": 0
     }
    ],
-   "seconds": 473
+   "seconds": 216,
+   "cards": "c68d7538a56b"
   },
   {
    "seed": 7,
    "lower": 19,
    "lower_h": 18,
    "lower_flow": 19,
-   "upper": 31,
+   "upper": 37,
    "upper_method": "beam3000+repair",
-   "gap": 12,
+   "gap": 18,
    "candidates": {
-    "bots": 42,
-    "beam3000+repair": 31,
+    "bots": 43,
+    "beam3000+repair": 37,
     "chain": 39
    },
    "plan": [
     {
-     "play": "crystal",
-     "hand": 0
-    },
-    {
-     "acquire": 2,
+     "acquire": 1,
      "payment": [
-      0,
       0
      ]
     },
     {
      "play": "crystal",
-     "hand": 1
+     "hand": 0
     },
     {
      "acquire": 4,
@@ -1271,71 +1242,15 @@
     },
     {
      "play": "crystal",
-     "hand": 1
-    },
-    {
-     "rest": true
-    },
-    {
-     "play": "upgrade",
-     "hand": 0,
-     "upgrades": [
-      0,
-      2
-     ]
+     "hand": 2
     },
     {
      "acquire": 0,
      "payment": []
     },
     {
-     "play": "crystal",
-     "hand": 1
-    },
-    {
-     "claim": 1
-    },
-    {
-     "acquire": 2,
-     "payment": [
-      0,
-      0
-     ]
-    },
-    {
-     "acquire": 1,
-     "payment": [
-      0
-     ]
-    },
-    {
-     "play": "crystal",
-     "hand": 0
-    },
-    {
      "acquire": 0,
      "payment": []
-    },
-    {
-     "play": "trade",
-     "hand": 3,
-     "times": 2
-    },
-    {
-     "play": "crystal",
-     "hand": 0
-    },
-    {
-     "play": "trade",
-     "hand": 1,
-     "times": 2
-    },
-    {
-     "acquire": 0,
-     "payment": []
-    },
-    {
-     "claim": 3
     },
     {
      "play": "trade",
@@ -1343,53 +1258,137 @@
      "times": 2
     },
     {
-     "rest": true
+     "play": "upgrade",
+     "hand": 0,
+     "upgrades": [
+      1,
+      1
+     ]
     },
     {
-     "play": "trade",
-     "hand": 7,
-     "times": 2
+     "play": "crystal",
+     "hand": 1
     },
     {
      "claim": 3
     },
     {
-     "play": "trade",
-     "hand": 7,
-     "times": 2
+     "rest": true
     },
     {
-     "claim": 2
+     "play": "upgrade",
+     "hand": 4,
+     "upgrades": [
+      1,
+      2
+     ]
     },
     {
      "play": "crystal",
-     "hand": 4
+     "hand": 1
     },
     {
-     "play": "trade",
-     "hand": 0,
-     "times": 1
+     "play": "crystal",
+     "hand": 1
     },
     {
      "play": "crystal",
      "hand": 2
     },
     {
-     "claim": 3
+     "rest": true
+    },
+    {
+     "claim": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
     },
     {
      "play": "upgrade",
-     "hand": 1,
+     "hand": 2,
      "upgrades": [
       2,
       2
      ]
     },
     {
+     "acquire": 0,
+     "payment": []
+    },
+    {
      "claim": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 1
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 6
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "claim": 0
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 5
+    },
+    {
+     "play": "upgrade",
+     "hand": 3,
+     "upgrades": [
+      2,
+      2
+     ]
+    },
+    {
+     "claim": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "claim": 0
     }
    ],
-   "seconds": 558
+   "seconds": 306,
+   "cards": "c68d7538a56b"
   },
   {
    "seed": 8,
@@ -1406,12 +1405,20 @@
    },
    "plan": [
     {
+     "acquire": 3,
+     "payment": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
      "acquire": 0,
      "payment": []
     },
     {
      "play": "crystal",
-     "hand": 2
+     "hand": 3
     },
     {
      "rest": true
@@ -1421,42 +1428,33 @@
      "hand": 0
     },
     {
-     "acquire": 4,
+     "acquire": 3,
      "payment": [
-      0,
       0,
       0,
       0
      ]
     },
     {
-     "acquire": 1,
-     "payment": [
-      0
-     ]
-    },
-    {
-     "acquire": 1,
-     "payment": [
-      0
-     ]
+     "play": "crystal",
+     "hand": 2
     },
     {
      "acquire": 0,
      "payment": []
     },
     {
-     "play": "crystal",
-     "hand": 1
+     "acquire": 0,
+     "payment": []
     },
     {
      "play": "trade",
-     "hand": 1,
+     "hand": 2,
      "times": 2
     },
     {
      "play": "trade",
-     "hand": 1,
+     "hand": 3,
      "times": 2
     },
     {
@@ -1583,7 +1581,8 @@
      "claim": 3
     }
    ],
-   "seconds": 588
+   "seconds": 317,
+   "cards": "c68d7538a56b"
   },
   {
    "seed": 9,
@@ -1731,6 +1730,1230 @@
     },
     {
      "discard": [
+      1,
+      1,
+      0,
+      0
+     ]
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "upgrade",
+     "hand": 3,
+     "upgrades": [
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "claim": 3
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 1
+    },
+    {
+     "claim": 4
+    }
+   ],
+   "seconds": 253,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 10,
+   "lower": 17,
+   "lower_h": 16,
+   "lower_flow": 17,
+   "upper": 30,
+   "upper_method": "beam3000+repair",
+   "gap": 13,
+   "candidates": {
+    "bots": 39,
+    "beam3000+repair": 30,
+    "chain": 35
+   },
+   "plan": [
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "acquire": 3,
+     "payment": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 3,
+     "upgrades": [
+      1,
+      2
+     ]
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 1
+    },
+    {
+     "claim": 1
+    },
+    {
+     "claim": 3
+    }
+   ],
+   "seconds": 280,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 11,
+   "lower": 18,
+   "lower_h": 16,
+   "lower_flow": 18,
+   "upper": 30,
+   "upper_method": "beam3000+repair",
+   "gap": 12,
+   "candidates": {
+    "bots": 35,
+    "beam3000+repair": 30,
+    "chain": 36
+   },
+   "plan": [
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "acquire": 3,
+     "payment": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 1
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "upgrade",
+     "hand": 4,
+     "upgrades": [
+      0,
+      0,
+      2
+     ]
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 4,
+     "upgrades": [
+      0,
+      0,
+      2
+     ]
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 1
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 4,
+     "upgrades": [
+      0,
+      0,
+      2
+     ]
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      0,
+      1
+     ]
+    },
+    {
+     "play": "upgrade",
+     "hand": 5,
+     "upgrades": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "claim": 1
+    },
+    {
+     "claim": 2
+    }
+   ],
+   "seconds": 267,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 12,
+   "lower": 19,
+   "lower_h": 18,
+   "lower_flow": 19,
+   "upper": 32,
+   "upper_method": "beam3000+repair",
+   "gap": 13,
+   "candidates": {
+    "bots": 34,
+    "beam3000+repair": 32,
+    "chain": 34
+   },
+   "plan": [
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      0,
+      1
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "claim": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "claim": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "claim": 2
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "play": "upgrade",
+     "hand": 0,
+     "upgrades": [
+      0,
+      1
+     ]
+    },
+    {
+     "claim": 4
+    }
+   ],
+   "seconds": 175,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 13,
+   "lower": 19,
+   "lower_h": 16,
+   "lower_flow": 19,
+   "upper": 33,
+   "upper_method": "beam3000+repair",
+   "gap": 14,
+   "candidates": {
+    "bots": 38,
+    "beam3000+repair": 33,
+    "chain": 35
+   },
+   "plan": [
+    {
+     "acquire": 3,
+     "payment": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 3
+    },
+    {
+     "claim": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "claim": 0
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "upgrade",
+     "hand": 0,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "claim": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "claim": 4
+    }
+   ],
+   "seconds": 171,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 14,
+   "lower": 17,
+   "lower_h": 15,
+   "lower_flow": 17,
+   "upper": 29,
+   "upper_method": "beam3000+repair",
+   "gap": 12,
+   "candidates": {
+    "bots": 32,
+    "beam3000+repair": 29,
+    "chain": 32
+   },
+   "plan": [
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      0,
+      0
+     ]
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      0,
+      0
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 2
+    },
+    {
+     "claim": 0
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 1
+    },
+    {
+     "discard": [
+      1,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "upgrade",
+     "hand": 2,
+     "upgrades": [
+      1,
+      2
+     ]
+    },
+    {
+     "claim": 2
+    }
+   ],
+   "seconds": 190,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 15,
+   "lower": 17,
+   "lower_h": 16,
+   "lower_flow": 17,
+   "upper": 27,
+   "upper_method": "beam3000+repair",
+   "gap": 10,
+   "candidates": {
+    "bots": 36,
+    "beam3000+repair": 27,
+    "chain": 33
+   },
+   "plan": [
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 1
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 3
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 1
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      1,
+      2
+     ]
+    },
+    {
+     "claim": 4
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "claim": 2
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 2
+    },
+    {
+     "claim": 1
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "play": "trade",
+     "hand": 0,
+     "times": 2
+    },
+    {
+     "claim": 4
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 1
+    },
+    {
+     "claim": 3
+    }
+   ],
+   "seconds": 186,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 16,
+   "lower": 19,
+   "lower_h": 16,
+   "lower_flow": 19,
+   "upper": 29,
+   "upper_method": "beam3000+repair",
+   "gap": 10,
+   "candidates": {
+    "bots": 38,
+    "beam3000+repair": 29,
+    "chain": 39
+   },
+   "plan": [
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "upgrade",
+     "hand": 3,
+     "upgrades": [
+      1,
+      2
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "claim": 1
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "claim": 3
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 2
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "claim": 4
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "claim": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "claim": 4
+    }
+   ],
+   "seconds": 255,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 17,
+   "lower": 19,
+   "lower_h": 18,
+   "lower_flow": 19,
+   "upper": 33,
+   "upper_method": "beam3000+repair",
+   "gap": 14,
+   "candidates": {
+    "bots": 45,
+    "beam3000+repair": 33,
+    "chain": 39
+   },
+   "plan": [
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "acquire": 3,
+     "payment": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      1,
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "claim": 0
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      1
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      0,
+      0
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "claim": 0
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "play": "upgrade",
+     "hand": 4,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "discard": [
       2,
       0,
       0,
@@ -1738,12 +2961,627 @@
      ]
     },
     {
+     "claim": 2
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 5
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 3
+    },
+    {
+     "claim": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 7
+    },
+    {
+     "play": "upgrade",
+     "hand": 4,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 5
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "claim": 1
+    },
+    {
      "claim": 3
+    }
+   ],
+   "seconds": 308,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 18,
+   "lower": 18,
+   "lower_h": 16,
+   "lower_flow": 18,
+   "upper": 35,
+   "upper_method": "beam3000+repair",
+   "gap": 17,
+   "candidates": {
+    "bots": 38,
+    "beam3000+repair": 35,
+    "chain": 49
+   },
+   "plan": [
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "crystal",
+     "hand": 5
+    },
+    {
+     "claim": 3
+    },
+    {
+     "play": "upgrade",
+     "hand": 0,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 0
     },
     {
      "play": "trade",
      "hand": 5,
      "times": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "claim": 1
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "claim": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 2,
+     "upgrades": [
+      1,
+      2
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 6
+    },
+    {
+     "play": "upgrade",
+     "hand": 5,
+     "upgrades": [
+      0,
+      1
+     ]
+    },
+    {
+     "claim": 4
+    }
+   ],
+   "seconds": 274,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 19,
+   "lower": 18,
+   "lower_h": 16,
+   "lower_flow": 18,
+   "upper": 28,
+   "upper_method": "beam3000+repair",
+   "gap": 10,
+   "candidates": {
+    "bots": 33,
+    "beam3000+repair": 28,
+    "chain": 36
+   },
+   "plan": [
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "acquire": 3,
+     "payment": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      2,
+      2
+     ]
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "claim": 2
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 1
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      0,
+      2
+     ]
+    },
+    {
+     "claim": 0
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "upgrade",
+     "hand": 4,
+     "upgrades": [
+      0,
+      0
+     ]
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "claim": 3
+    }
+   ],
+   "seconds": 187,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 20,
+   "lower": 18,
+   "lower_h": 16,
+   "lower_flow": 18,
+   "upper": 29,
+   "upper_method": "beam3000+repair",
+   "gap": 11,
+   "candidates": {
+    "bots": 43,
+    "beam3000+repair": 29,
+    "chain": 43
+   },
+   "plan": [
+    {
+     "acquire": 2,
+     "payment": [
+      0,
+      0
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      0,
+      0
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 6
+    },
+    {
+     "play": "upgrade",
+     "hand": 3,
+     "upgrades": [
+      0,
+      1,
+      2
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "rest": true
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "crystal",
+     "hand": 6
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "play": "upgrade",
+     "hand": 4,
+     "upgrades": [
+      0,
+      1,
+      1
+     ]
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 1
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "discard": [
+      0,
+      1,
+      0,
+      0
+     ]
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 1
+    },
+    {
+     "play": "trade",
+     "hand": 7,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 7,
+     "times": 2
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "claim": 4
+    },
+    {
+     "claim": 2
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "claim": 3
+    }
+   ],
+   "seconds": 253,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 21,
+   "lower": 19,
+   "lower_h": 17,
+   "lower_flow": 19,
+   "upper": 30,
+   "upper_method": "beam3000+repair",
+   "gap": 11,
+   "candidates": {
+    "bots": 39,
+    "beam3000+repair": 30,
+    "chain": 39
+   },
+   "plan": [
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      1
+     ]
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      1
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 3
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 3
     },
     {
      "play": "crystal",
@@ -1753,17 +3591,1476 @@
      "claim": 3
     },
     {
+     "play": "trade",
+     "hand": 5,
+     "times": 3
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 5
+    },
+    {
+     "claim": 2
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 3
+    },
+    {
+     "claim": 2
+    },
+    {
      "play": "upgrade",
-     "hand": 3,
+     "hand": 0,
      "upgrades": [
-      0
+      1,
+      2
      ]
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "claim": 2
     },
     {
      "claim": 4
     }
    ],
-   "seconds": 498
+   "seconds": 222,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 22,
+   "lower": 19,
+   "lower_h": 19,
+   "lower_flow": 19,
+   "upper": 34,
+   "upper_method": "beam3000+repair",
+   "gap": 15,
+   "candidates": {
+    "bots": 50,
+    "beam3000+repair": 34,
+    "chain": 44
+   },
+   "plan": [
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "acquire": 3,
+     "payment": [
+      0,
+      1,
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      1,
+      1
+     ]
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      1
+     ]
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "upgrade",
+     "hand": 3,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 3
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "discard": [
+      2,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 4
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "upgrade",
+     "hand": 3,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "discard": [
+      3,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "play": "upgrade",
+     "hand": 3,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 3
+    },
+    {
+     "claim": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 4,
+     "upgrades": [
+      1,
+      2
+     ]
+    },
+    {
+     "claim": 1
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 1
+    },
+    {
+     "claim": 3
+    }
+   ],
+   "seconds": 294,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 23,
+   "lower": 18,
+   "lower_h": 16,
+   "lower_flow": 18,
+   "upper": 29,
+   "upper_method": "beam3000+repair",
+   "gap": 11,
+   "candidates": {
+    "bots": 39,
+    "beam3000+repair": 29,
+    "chain": 38
+   },
+   "plan": [
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      1
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "upgrade",
+     "hand": 0,
+     "upgrades": [
+      0,
+      1
+     ]
+    },
+    {
+     "claim": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 3
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "trade",
+     "hand": 0,
+     "times": 1
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 3
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "claim": 2
+    },
+    {
+     "claim": 3
+    }
+   ],
+   "seconds": 241,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 24,
+   "lower": 18,
+   "lower_h": 16,
+   "lower_flow": 18,
+   "upper": 35,
+   "upper_method": "beam3000+repair",
+   "gap": 17,
+   "candidates": {
+    "bots": 54,
+    "beam3000+repair": 35,
+    "chain": 42
+   },
+   "plan": [
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      1
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      1
+     ]
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      0,
+      0
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 0,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 0,
+     "times": 2
+    },
+    {
+     "discard": [
+      1,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 0,
+     "times": 1
+    },
+    {
+     "claim": 0
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 0,
+     "upgrades": [
+      0,
+      0
+     ]
+    },
+    {
+     "claim": 2
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 2,
+     "upgrades": [
+      2,
+      2
+     ]
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "claim": 2
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 2
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "upgrade",
+     "hand": 3,
+     "upgrades": [
+      0,
+      0
+     ]
+    },
+    {
+     "claim": 2
+    }
+   ],
+   "seconds": 406,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 25,
+   "lower": 18,
+   "lower_h": 16,
+   "lower_flow": 18,
+   "upper": 32,
+   "upper_method": "beam3000+repair",
+   "gap": 14,
+   "candidates": {
+    "bots": 45,
+    "beam3000+repair": 32,
+    "chain": 41
+   },
+   "plan": [
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "acquire": 3,
+     "payment": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      0,
+      0
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 3
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "upgrade",
+     "hand": 2,
+     "upgrades": [
+      0,
+      2
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 1
+    },
+    {
+     "claim": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 5
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      1,
+      2
+     ]
+    },
+    {
+     "claim": 3
+    }
+   ],
+   "seconds": 300,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 26,
+   "lower": 19,
+   "lower_h": 18,
+   "lower_flow": 19,
+   "upper": 38,
+   "upper_method": "beam3000+repair",
+   "gap": 19,
+   "candidates": {
+    "bots": 40,
+    "beam3000+repair": 38,
+    "chain": 42
+   },
+   "plan": [
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      0,
+      1
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 3
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 3
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 1
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "claim": 0
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 5
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "claim": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 3,
+     "upgrades": [
+      0,
+      1
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "claim": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 3,
+     "upgrades": [
+      0,
+      1
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "claim": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "claim": 1
+    }
+   ],
+   "seconds": 208,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 27,
+   "lower": 19,
+   "lower_h": 18,
+   "lower_flow": 19,
+   "upper": 32,
+   "upper_method": "beam3000+repair",
+   "gap": 13,
+   "candidates": {
+    "bots": 47,
+    "beam3000+repair": 32,
+    "chain": 45
+   },
+   "plan": [
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      0,
+      0
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 5
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 5
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "trade",
+     "hand": 6,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 1,
+     "times": 1
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 2
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 2
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "claim": 2
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 2,
+     "upgrades": [
+      2,
+      2
+     ]
+    },
+    {
+     "claim": 1
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "play": "trade",
+     "hand": 0,
+     "times": 3
+    },
+    {
+     "discard": [
+      4,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "claim": 1
+    },
+    {
+     "claim": 3
+    }
+   ],
+   "seconds": 295,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 28,
+   "lower": 19,
+   "lower_h": 17,
+   "lower_flow": 19,
+   "upper": 36,
+   "upper_method": "beam3000+repair",
+   "gap": 17,
+   "candidates": {
+    "bots": 40,
+    "beam3000+repair": 36,
+    "chain": 40
+   },
+   "plan": [
+    {
+     "acquire": 3,
+     "payment": [
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      1
+     ]
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      1
+     ]
+    },
+    {
+     "acquire": 2,
+     "payment": [
+      0,
+      0
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 2
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      1
+     ]
+    },
+    {
+     "claim": 3
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 8
+    },
+    {
+     "play": "crystal",
+     "hand": 4
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "discard": [
+      2,
+      0,
+      0,
+      0
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 2
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 5
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 2
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "play": "crystal",
+     "hand": 3
+    },
+    {
+     "play": "trade",
+     "hand": 2,
+     "times": 3
+    },
+    {
+     "claim": 3
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 7
+    },
+    {
+     "play": "crystal",
+     "hand": 6
+    },
+    {
+     "claim": 3
+    },
+    {
+     "play": "upgrade",
+     "hand": 0,
+     "upgrades": [
+      0,
+      0
+     ]
+    },
+    {
+     "play": "crystal",
+     "hand": 2
+    },
+    {
+     "claim": 4
+    }
+   ],
+   "seconds": 384,
+   "cards": "c68d7538a56b"
+  },
+  {
+   "seed": 29,
+   "lower": 19,
+   "lower_h": 16,
+   "lower_flow": 19,
+   "upper": 30,
+   "upper_method": "beam3000+repair",
+   "gap": 11,
+   "candidates": {
+    "bots": 50,
+    "beam3000+repair": 30,
+    "chain": 55
+   },
+   "plan": [
+    {
+     "play": "upgrade",
+     "hand": 1,
+     "upgrades": [
+      0,
+      0
+     ]
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      1
+     ]
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      1
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "acquire": 1,
+     "payment": [
+      0
+     ]
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "upgrade",
+     "hand": 5,
+     "upgrades": [
+      1,
+      1
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 2
+    },
+    {
+     "acquire": 3,
+     "payment": [
+      0,
+      1,
+      1
+     ]
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 4,
+     "times": 3
+    },
+    {
+     "acquire": 0,
+     "payment": []
+    },
+    {
+     "claim": 0
+    },
+    {
+     "rest": true
+    },
+    {
+     "play": "crystal",
+     "hand": 0
+    },
+    {
+     "claim": 0
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 2
+    },
+    {
+     "discard": [
+      0,
+      1,
+      0,
+      0
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 3
+    },
+    {
+     "rest": true
+    },
+    {
+     "claim": 3
+    },
+    {
+     "play": "trade",
+     "hand": 3,
+     "times": 1
+    },
+    {
+     "claim": 1
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 2
+    },
+    {
+     "discard": [
+      1,
+      1,
+      0,
+      0
+     ]
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 3
+    },
+    {
+     "play": "trade",
+     "hand": 5,
+     "times": 2
+    },
+    {
+     "play": "upgrade",
+     "hand": 3,
+     "upgrades": [
+      0,
+      1
+     ]
+    },
+    {
+     "claim": 1
+    },
+    {
+     "claim": 1
+    }
+   ],
+   "seconds": 397,
+   "cards": "c68d7538a56b"
   }
  ]
 }

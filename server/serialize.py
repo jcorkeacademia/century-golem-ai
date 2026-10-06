@@ -46,7 +46,8 @@ def _caravan_bundle(caravan: list[int]) -> dict:
 
 
 def merchant_card_to_dict(
-    card, *, slot: int | None = None, crystals_on_card: Counter | None = None, times_played: int | None = None
+    card, *, slot: int | None = None, crystals_on_card: Counter | None = None, times_played: int | None = None,
+    room_id: str | None = None,
 ) -> dict:
     if isinstance(card, CrystalCard):
         d = {
@@ -78,7 +79,7 @@ def merchant_card_to_dict(
     else:
         raise TypeError(f"unknown merchant card type {card!r}")
 
-    d["art"] = art_url_for(card)
+    d["art"] = art_url_for(card, room_id)
     if slot is not None:
         d = {"slot": slot, **d}
     if crystals_on_card is not None:
@@ -92,17 +93,17 @@ def merchant_card_to_dict(
     return d
 
 
-def hand_card_to_dict(card, hand_index: int, *, times_played: int | None = None) -> dict:
-    d = merchant_card_to_dict(card, times_played=times_played)
+def hand_card_to_dict(card, hand_index: int, *, times_played: int | None = None, room_id: str | None = None) -> dict:
+    d = merchant_card_to_dict(card, times_played=times_played, room_id=room_id)
     return {"hand_index": hand_index, **d}
 
 
-def golem_card_to_dict(card: PointCard, slot: int | None = None) -> dict:
+def golem_card_to_dict(card: PointCard, slot: int | None = None, *, room_id: str | None = None) -> dict:
     d = {
         "name": card.name,
         "points": card.points,
         "cost": _bundle(card.cost),
-        "art": art_url_for(card),
+        "art": art_url_for(card, room_id),
     }
     if slot is not None:
         d = {"slot": slot, **d}
@@ -114,13 +115,13 @@ def game_to_state(room: Room, viewer_seat: int | None) -> dict:
     assert game is not None
 
     golem_row = [
-        golem_card_to_dict(pc, slot)
+        golem_card_to_dict(pc, slot, room_id=room.room_id)
         for slot, pc in enumerate(game.point_row)
         if pc is not None
     ]
 
     merchant_row = [
-        merchant_card_to_dict(card, slot=slot, crystals_on_card=game.row_crystals[slot])
+        merchant_card_to_dict(card, slot=slot, crystals_on_card=game.row_crystals[slot], room_id=room.room_id)
         for slot, card in enumerate(game.merchant_row)
         if card is not None
     ]
@@ -165,9 +166,10 @@ def game_to_state(room: Room, viewer_seat: int | None) -> dict:
             "avatar": room.avatars[seat] if seat < len(room.avatars) else None,
             "caravan": _caravan_bundle(p.caravan),
             "caravan_total": p.total_crystals(),
-            "hand": [hand_card_to_dict(c, i, times_played=_times_played(c)) for i, c in enumerate(p.hand)],
-            "played": [merchant_card_to_dict(c, times_played=_times_played(c)) for c in p.played],
-            "golems": [golem_card_to_dict(pc) for pc in p.point_cards],
+            "hand": [hand_card_to_dict(c, i, times_played=_times_played(c), room_id=room.room_id)
+                     for i, c in enumerate(p.hand)],
+            "played": [merchant_card_to_dict(c, times_played=_times_played(c), room_id=room.room_id) for c in p.played],
+            "golems": [golem_card_to_dict(pc, room_id=room.room_id) for pc in p.point_cards],
             "golem_count": len(p.point_cards),
             "golem_points": sum(pc.points for pc in p.point_cards),
             "tokens": {

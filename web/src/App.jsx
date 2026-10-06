@@ -34,8 +34,8 @@ function storeSession(session) {
       localStorage.removeItem(SESSION_KEY)
       return
     }
-    const { name, roomId, avatarId, solo, playerCount, difficulty } = session
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ name, roomId, avatarId, solo, playerCount, difficulty }))
+    const { name, roomId, avatarId, solo, playerCount, difficulty, tutorial } = session
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ name, roomId, avatarId, solo, playerCount, difficulty, tutorial }))
   } catch {
     // Storage unavailable (private browsing, quota, etc.) — a refresh just
     // won't resume; nothing here needs to crash over it.
@@ -60,6 +60,7 @@ export default function App() {
     solo: session?.solo,
     playerCount: session?.playerCount,
     difficulty: session?.difficulty,
+    tutorial: session?.tutorial,
     attempt: session?.attempt,
     enabled: session !== null,
   })
@@ -83,6 +84,24 @@ export default function App() {
     })
   }
 
+  // The interactive tutorial (StartScreen's "How to play"): a brand new room
+  // every time, and like practice mode, a name and avatar are optional. The
+  // code is 6 characters on purpose: 5 or more shows the painted card art
+  // (server/card_art_index.py's GOL_MIN_CODE_LEN) instead of the photo set.
+  function handleTutorialSubmit(name, avatarId) {
+    setSession((prev) => {
+      const next = { name, roomId: randomRoomCode(6), avatarId, tutorial: true, attempt: (prev?.attempt || 0) + 1 }
+      storeSession(next)
+      return next
+    })
+  }
+
+  // The tutorial's Final Tally offers "Practice vs bots" — one Medium bot,
+  // StartScreen's own default skill, in a fresh practice room.
+  function handlePracticeAfterTutorial() {
+    handleSoloSubmit(session?.name || 'You', session?.avatarId, 2, 'medium')
+  }
+
   // The only way back to StartScreen once a session is stored — otherwise
   // a refresh would just reconnect you to the same room forever. Board.jsx
   // surfaces this as a small "Leave game" control.
@@ -104,15 +123,22 @@ export default function App() {
   // room, already started, etc.) — let them fix it and try again rather
   // than getting stuck on a dead connection.
   if (rejectedBeforeRoom) {
-    return <StartScreen initialError={game.lastError.message} onSubmit={handleSubmit} onSoloSubmit={handleSoloSubmit} />
+    return (
+      <StartScreen
+        initialError={game.lastError.message}
+        onSubmit={handleSubmit}
+        onSoloSubmit={handleSoloSubmit}
+        onTutorialSubmit={handleTutorialSubmit}
+      />
+    )
   }
 
   if (!session) {
-    return <StartScreen onSubmit={handleSubmit} onSoloSubmit={handleSoloSubmit} />
+    return <StartScreen onSubmit={handleSubmit} onSoloSubmit={handleSoloSubmit} onTutorialSubmit={handleTutorialSubmit} />
   }
 
   if (game.state) {
-    return <Board game={game} onLeave={handleLeave} />
+    return <Board game={game} onLeave={handleLeave} onPractice={session.tutorial ? handlePracticeAfterTutorial : undefined} />
   }
 
   if (game.lobby) {

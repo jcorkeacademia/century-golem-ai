@@ -69,7 +69,7 @@ MERCHANTS = [
     ("trade", {"B": 3}, {"M": 3}),                        # your #20
     ("trade", {"M": 2}, {"G": 3, "B": 2}),                # your #7
     ("trade", {"M": 2}, {"Y": 1, "G": 1, "B": 3}),        # your #12
-    ("trade", {"Y": 4}, {"B": 3}),                        # your #37
+    ("trade", {"Y": 5}, {"B": 3}),                        # your #37
 
     # ---- starting cards (purple border, not in the merchant deck) ----
     # One artwork each; print as many copies as you have players.
@@ -102,6 +102,7 @@ STRIP_W      = 150                 # strip width in px
 STRIP_INSET  = 34                  # gap between the left card edge and the strip
 STRIP_FILL   = (247, 243, 233, 232)   # cream panel, slightly translucent
 STRIP_EDGE   = (120, 104, 138, 255)
+STRIP_OVERHANG = 14                # how far past an old printed strip the new one reaches
 
 CRYSTAL_SIZE = 82                  # icon size inside the strip
 CRYSTAL_GAP  = 8                   # vertical gap between stacked crystals
@@ -141,6 +142,45 @@ OUT      = ROOT / "out_merchants"
 MAPPING  = ROOT / "merchants.csv"
 
 IMG_EXT = (".png", ".jpg", ".jpeg", ".webp", ".PNG", ".JPG", ".JPEG", ".WEBP")
+
+# --------------------------------------------------------------------------
+# ART SETS -- pick one with --set NAME (default: photos), as in make_cards.py.
+#   photos  the face deck: photos_merchants/ + merchants.csv -> out_merchants/
+#   gol     card art cut from photos of the real cards for the DEFAULT room:
+#           ../gol/merchant_backgrounds (made by extract_merchants.py from
+#           ../mer) + ../gol/merchants.csv -> ../gol/out_merchants/
+# The gol art has its printed strip painted out, which leaves a smear; the
+# new strip sits where the printed one did (near the edge, a little wider)
+# and stretches down to the old one's tip, read from strips.csv.
+# --------------------------------------------------------------------------
+GOL = ROOT.parent / "gol"
+ART_SETS = {
+    "photos": dict(PHOTOS_M=PHOTOS_M, MAPPING=MAPPING, OUT=OUT),
+    "gol":    dict(PHOTOS_M=GOL / "merchant_backgrounds", MAPPING=GOL / "merchants.csv",
+                   OUT=GOL / "out_merchants", PHOTO_ANCHOR=0.5,
+                   STRIP_INSET=6, STRIP_W=160),
+}
+
+
+def load_strips():
+    """photo filename -> how far down its painted-out strip reached."""
+    p = PHOTOS_M / "strips.csv"
+    if not p.exists():
+        return {}
+    with open(p, newline="", encoding="utf-8") as f:
+        return {r["photo"]: float(r["strip_bottom"]) for r in csv.DictReader(f)}
+
+
+def select_art_set():
+    """Apply --set NAME from ART_SETS over the module-level settings."""
+    name = "photos"
+    if "--set" in sys.argv:
+        i = sys.argv.index("--set")
+        if i + 1 >= len(sys.argv) or sys.argv[i + 1] not in ART_SETS:
+            sys.exit(f"--set takes one of: {', '.join(ART_SETS)}")
+        name = sys.argv[i + 1]
+    globals().update(ART_SETS[name])
+    print(f"Art set: {name}")
 
 
 # --------------------------------------------------------------------------
@@ -197,18 +237,20 @@ def seq_of(d):
     return [c for c in ORDER for _ in range(d.get(c, 0))]
 
 
-def stack_height(seq, icons):
+def stack_height(seq, icons, gap=None):
     if not seq:
         return 0
-    return sum(icons[c].height for c in seq) + CRYSTAL_GAP * (len(seq) - 1)
+    gap = CRYSTAL_GAP if gap is None else gap
+    return sum(icons[c].height for c in seq) + gap * (len(seq) - 1)
 
 
-def paste_stack(target, seq, icons, cx, y):
+def paste_stack(target, seq, icons, cx, y, gap=None):
     """Paste crystals in a vertical column centred on cx, starting at y."""
+    gap = CRYSTAL_GAP if gap is None else gap
     for c in seq:
         ic = icons[c]
-        target.paste(ic, (cx - ic.width // 2, y), ic)
-        y += ic.height + CRYSTAL_GAP
+        target.paste(ic, (cx - ic.width // 2, round(y)), ic)
+        y += ic.height + gap
     return y
 
 
@@ -236,14 +278,17 @@ def up_arrow(d, cx, y, w=52, h=46):
 
 
 def build_card(kind, cost, gain, photo_path, icons, font, steps=None,
-               border=None):
+               border=None, strip_frac=None):
+    """strip_frac: how far down the photo an old printed strip reaches (as a
+    fraction of its height). The new strip then stretches to cover it."""
     steps = steps or UPGRADE_STEPS
     W, H = CARD_W, CARD_H
     card = Image.new("RGB", (W, H), border or BORDER_COLOR)
 
     iw, ih = W - 2 * BORDER, H - 2 * BORDER
-    photo = (fill_crop(Image.open(photo_path), iw, ih, PHOTO_ANCHOR)
-             if photo_path else Image.new("RGB", (iw, ih), (120, 118, 140)))
+    src = Image.open(photo_path) if photo_path else None
+    photo = (fill_crop(src, iw, ih, PHOTO_ANCHOR)
+             if src else Image.new("RGB", (iw, ih), (120, 118, 140)))
     inner = Image.new("RGB", (iw, ih), border or BORDER_COLOR)
     inner.paste(photo, (0, 0))
     card.paste(inner, (BORDER, BORDER),
@@ -251,18 +296,38 @@ def build_card(kind, cost, gain, photo_path, icons, font, steps=None,
 
     # ---- work out how tall the strip contents are ----
     cost_seq, gain_seq = seq_of(cost), seq_of(gain)
-    if kind == "upgrade":
-        content_h = steps * 46 + (steps - 1) * ARROW_GAP
-    elif cost_seq:
-        content_h = (stack_height(cost_seq, icons) + ARROW_GAP + 46
-                     + ARROW_GAP + stack_height(gain_seq, icons))
-    else:
-        content_h = stack_height(gain_seq, icons)
+    gap, arrow_gap, pad = CRYSTAL_GAP, ARROW_GAP, 26
 
-    pad = 26
-    strip_h = content_h + pad * 2
+    def content_height():
+        if kind == "upgrade":
+            return steps * 46 + (steps - 1) * arrow_gap
+        if cost_seq:
+            return (stack_height(cost_seq, icons, gap) + arrow_gap + 46
+                    + arrow_gap + stack_height(gain_seq, icons, gap))
+        return stack_height(gain_seq, icons, gap)
+
     strip_x = BORDER + STRIP_INSET
     strip_y = BORDER                      # flush with the top of the art
+    strip_h = content_height() + pad * 2
+
+    if strip_frac and src:
+        # where the old strip's tip lands on the card, via fill_crop's geometry
+        scale = max(iw / src.width, ih / src.height)
+        top = max(0, min(round((src.height * scale - ih) * PHOTO_ANCHOR),
+                         round(src.height * scale) - ih))
+        need = BORDER + strip_frac * src.height * scale - top + STRIP_OVERHANG - strip_y
+        need = min(need, ih - 40)
+        if need > strip_h:
+            # spread the difference over every gap (and the two end pads)
+            if kind == "upgrade":
+                slots = steps - 1
+            elif cost_seq:
+                slots = len(cost_seq) - 1 + len(gain_seq) - 1 + 2
+            else:
+                slots = len(gain_seq) - 1
+            extra = (need - strip_h) / (slots + 2)
+            gap, arrow_gap, pad = gap + extra, arrow_gap + extra, pad + extra
+            strip_h = content_height() + pad * 2
 
     # ---- the cream panel: hangs from the top edge like a bookmark, so only
     # the bottom corners are rounded (the top is drawn off-card and clipped) ----
@@ -282,15 +347,15 @@ def build_card(kind, cost, gain, photo_path, icons, font, steps=None,
     if kind == "upgrade":
         for i in range(steps):
             y = up_arrow(d, cx, y)
-            y += ARROW_GAP
+            y += arrow_gap
     elif cost_seq:
-        y = paste_stack(card, cost_seq, icons, cx, y)
-        y += ARROW_GAP - CRYSTAL_GAP
+        y = paste_stack(card, cost_seq, icons, cx, y, gap)
+        y += arrow_gap - gap
         y = down_arrow(d, cx, y)
-        y += ARROW_GAP
-        paste_stack(card, gain_seq, icons, cx, y)
+        y += arrow_gap
+        paste_stack(card, gain_seq, icons, cx, y, gap)
     else:
-        paste_stack(card, gain_seq, icons, cx, y)
+        paste_stack(card, gain_seq, icons, cx, y, gap)
 
     if SHOW_LABEL:
         txt = plain_label(kind, cost, gain, steps)
@@ -405,6 +470,7 @@ def make_pdf(paths, pdf_path):
 
 
 def main():
+    select_art_set()
     if "--init" in sys.argv:
         write_template()
         return
@@ -442,6 +508,7 @@ def main():
         resolved[slot] = p
         claimed.add(p.stem.lower())
 
+    strips = load_strips()
     leftovers = [p for p in pool if p.stem.lower() not in claimed]
     if not leftovers:
         leftovers = pool
@@ -466,7 +533,8 @@ def main():
         if check_only:
             continue
         card = build_card(kind, cost, gain, photo, icons, font, steps,
-                          START_BORDER if starting else None)
+                          START_BORDER if starting else None,
+                          strips.get(photo.name) if photo else None)
         p = OUT / (f"start_{stem}_{kind}.png" if starting
                    else f"merchant_{stem}_{kind}.png")
         card.save(p, dpi=(DPI, DPI))

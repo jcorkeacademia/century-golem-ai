@@ -28,7 +28,7 @@ from typing import Optional
 from bots._engine import (Acquire, Claim, Crystal, CrystalCard, Discard, Game,
                           PlayCrystal, PlayTrade, PlayUpgrade, Rest, Token,
                           TradeCard, UpgradeCard)
-from solver.bracket import action_from_json
+from solver.plans import best_saved
 from solver.greedy import Plan, verify
 from solver.solo import new_solo_game, turns_in
 
@@ -45,23 +45,13 @@ NAME = {Crystal.YELLOW: "yellow", Crystal.GREEN: "green",
 
 def best_saved_plan(seed: int) -> tuple[Plan, str]:
     """The shortest plan saved for `seed`, and where it came from."""
-    found = []
-    for file, label in (("solver_bracket.json", "bracket"), ("solver_study.json", "study")):
-        path = RESULTS / file
-        if not path.exists():
-            continue
-        data = json.loads(path.read_text(encoding="utf-8"))
-        for row in data["seeds"]:
-            if row["seed"] == seed:
-                actions = tuple(action_from_json(d) for d in row["plan"])
-                width = data.get("beam_width", "?")
-                found.append((Plan(turns_in(actions), actions, label),
-                              f"{label} (beam width {width})"))
-    if not found:
+    saved = best_saved(seed)
+    if saved is None:
         from solver.improve import beam, repair
         plan = repair(seed, beam(seed, 1000), 2_000)
         return plan, "solved now (beam width 1000 + repair)"
-    return min(found, key=lambda t: t[0].turns)
+    actions, source = saved
+    return Plan(turns_in(actions), actions, source), source
 
 
 # ---------------------------------------------------------------------------

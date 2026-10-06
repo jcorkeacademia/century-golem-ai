@@ -10,7 +10,9 @@ import AvatarGlyph from './AvatarGlyph.jsx'
 // and Board.jsx's own floating "View results" button (.gameover-reopen)
 // brings it back after it's been closed, so closing it to look at the board
 // is never a one-way trip.
-export default function GameOverOverlay({ players, winner, resolveAvatar, onClose, onSelectPlayer }) {
+// `actions` (optional): buttons shown in place of "View final board" — only
+// the tutorial passes them (Board.jsx), for its "what next" choices.
+export default function GameOverOverlay({ players, winner, resolveAvatar, onClose, onSelectPlayer, actions }) {
   const ranked = [...players].sort((a, b) => b.score - a.score)
   const winnerPlayer = players.find((p) => p.name === winner)
   const winnerAvatar = winnerPlayer && avatarById(resolveAvatar(winnerPlayer))
@@ -79,9 +81,26 @@ export default function GameOverOverlay({ players, winner, resolveAvatar, onClos
           })}
         </div>
 
-        <button type="button" className="gameover-close" onClick={onClose}>
-          View final board
-        </button>
+        {actions ? (
+          <div className="gameover-actions">
+            {actions.map((a) => (
+              <button
+                key={a.label}
+                type="button"
+                className="gameover-close"
+                onClick={a.onClick}
+                disabled={a.disabled}
+                title={a.title}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <button type="button" className="gameover-close" onClick={onClose}>
+            View final board
+          </button>
+        )}
       </div>
     </div>
   )

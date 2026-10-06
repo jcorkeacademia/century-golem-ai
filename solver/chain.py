@@ -46,7 +46,7 @@ from bots.bots import GreedyBot
 from solver.bound import h, potential
 from solver.fastclone import fast_clone
 from solver.greedy import Plan, verify
-from solver.search import (Moves, OutOfBudget, Stats, cheap_payments,
+from solver.search import (Moves, OutOfBudget, Stats, cheap_payments, playable_moves,
                            claims_first, dfbb, turn_cost)
 from solver.solo import new_solo_game, turns_in
 from solver.state import key
@@ -140,7 +140,7 @@ def _best_ending(sub: Game, turns: int, real_target: int, moves: Moves,
 
 
 def next_golem(game: Game, seed: int, node_budget: int = 30_000,
-               tie_budget: int = 20_000, moves: Moves = cheap_payments,
+               tie_budget: int = 20_000, moves: Moves = playable_moves,
                step: int = 1) -> Segment:
     """Fewest turns from `game` to `step` more golems, proven if within
     budget."""

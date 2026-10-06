@@ -7,6 +7,8 @@ import PlayerDetailOverlay from './PlayerDetailOverlay.jsx'
 import TradeDialog from './TradeDialog.jsx'
 import ClaimDialog from './ClaimDialog.jsx'
 import GameOverOverlay from './GameOverOverlay.jsx'
+import GuideBanner from './GuideBanner.jsx'
+import TutorialOverlay from './TutorialOverlay.jsx'
 import { slotColorAfterPicks, picksToColors } from '../upgrade.js'
 import { avatarIdForSeat } from '../avatars.js'
 import { maxAffordableTradeTimes } from '../trade.js'
@@ -44,7 +46,7 @@ function resolveAvatar(player) {
   return player.avatar || avatarIdForSeat(player.seat)
 }
 
-export default function Board({ game, onLeave }) {
+export default function Board({ game, onLeave, onPractice }) {
   const { state, stateReceivedAt, sendAction, lastError, clearError } = game
   const [builder, setBuilder] = useState(null)
   const [expandedSeat, setExpandedSeat] = useState(null)
@@ -86,6 +88,15 @@ export default function Board({ game, onLeave }) {
   const mySeat = state.you
   const me = state.players[mySeat]
   const myTurn = current === mySeat
+  // Guided TEST rooms only (server/guided.py) — the solver's next move, which
+  // gets a red outline; null in every ordinary game, so nothing changes there.
+  const guide = state.guide ?? null
+  // The interactive tutorial only (server/tutorial.py): the step's text,
+  // and — on the step where the player must make one exact move — that move
+  // as `target`, outlined exactly like a guided room's next move.
+  const tutorial = state.tutorial ?? null
+  const coachAction = guide?.action ?? tutorial?.target ?? null
+  const guideAction = coachAction && myTurn && !state.game_over ? coachAction : null
 
   // A builder (trade/upgrade) only ever makes sense for whoever's turn it
   // was when it was opened — every action (including one taken without
@@ -324,6 +335,7 @@ export default function Board({ game, onLeave }) {
 
   return (
     <div className="app-shell">
+      {guide && <GuideBanner guide={guide} />}
       <div className={`table-layout layout-opp-${opponentOrder.length}`}>
         {opponentOrder.map((player, i) => (
           <div key={player.seat} className={opponentSlots[i]}>
@@ -349,6 +361,7 @@ export default function Board({ game, onLeave }) {
             hoverSlot={crystalDrag?.hoverSlot ?? null}
             missingSlots={missingFlash}
             interactive={myTurn}
+            guideAction={guideAction}
           />
         </div>
 
@@ -370,11 +383,18 @@ export default function Board({ game, onLeave }) {
             draggingCaravanIndex={crystalDrag?.sourceIndex ?? null}
             onRest={state.game_over || !myTurn ? undefined : handleRest}
             turnClock={turnClockProps(me)}
+            guideAction={guideAction}
           />
         </div>
 
         <div className="area-strip">
-          <ActionStrip state={state} lastError={lastError} onDismissError={clearError} />
+          {/* A tutorial refusal is already said in the tutorial's own box —
+              shown here too it would add a strip that squeezes the board. */}
+          <ActionStrip
+            state={state}
+            lastError={tutorial && lastError?.code === 'tutorial' ? null : lastError}
+            onDismissError={clearError}
+          />
         </div>
       </div>
 
@@ -434,6 +454,17 @@ export default function Board({ game, onLeave }) {
         />
       )}
 
+      {tutorial && (
+        <TutorialOverlay
+          tutorial={tutorial}
+          gameOver={state.game_over}
+          lastError={lastError}
+          onNext={() => sendAction({ type: 'tutorial_next' })}
+          onUpgrade={(upgrades) => sendAction({ type: 'play_upgrade', hand_index: 0, upgrades })}
+          onSkip={onLeave}
+        />
+      )}
+
       {state.game_over && !gameOverDismissed && (
         <GameOverOverlay
           players={state.players}
@@ -441,6 +472,17 @@ export default function Board({ game, onLeave }) {
           resolveAvatar={resolveAvatar}
           onClose={() => setGameOverDismissed(true)}
           onSelectPlayer={setExpandedSeat}
+          actions={
+            tutorial
+              ? [
+                  // "Keep playing" is read as "go and play a real game": back
+                  // to the start screen to create or join a room.
+                  { label: 'Keep playing', onClick: onLeave },
+                  { label: 'Practice vs bots', onClick: onPractice, disabled: !onPractice },
+                  { label: 'Read the rules', disabled: true, title: 'The rules page has not been written yet' },
+                ]
+              : undefined
+          }
         />
       )}
 

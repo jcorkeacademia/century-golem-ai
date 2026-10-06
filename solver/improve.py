@@ -42,7 +42,7 @@ from solver.bound import h
 from solver.flow import flow_bound
 from solver.fastclone import fast_clone
 from solver.greedy import Plan, _solo_scoring, upper_bound, verify
-from solver.search import (Moves, OutOfBudget, Stats, cheap_payments,
+from solver.search import (Moves, OutOfBudget, Stats, cheap_payments, playable_moves,
                            claims_first, dfbb)
 from solver.solo import new_solo_game, turns_in
 from solver.state import key
@@ -63,7 +63,7 @@ def _positions(seed: int, actions: tuple) -> list[Game]:
 
 
 def repair(seed: int, plan: Plan, node_budget: int = 2_000,
-           moves: Moves = cheap_payments) -> Plan:
+           moves: Moves = playable_moves) -> Plan:
     """Shorten `plan` by re-solving its finish from each position, last first."""
     actions = plan.actions
     positions = _positions(seed, actions)
@@ -116,17 +116,30 @@ def _scorer():
 
 
 def beam(seed: int, width: int = 100, max_turns: int = 80,
-         moves: Moves = cheap_payments, target: Optional[int] = None
+         moves: Moves = playable_moves, target: Optional[int] = None
          ) -> Optional[Plan]:
     """Shortest win a width-limited, bot-ranked breadth-first search finds.
 
     `target` lowers the goal to that many golems (solver.calibrate uses it);
     the plan is then replayed against the same lowered goal."""
-    weights, scales = _scorer()
     start = new_solo_game(seed=seed)
     if target is not None:
         start.win_target = target
-    layer = [(start, ())]
+    actions = beam_from(start, width, max_turns, moves)
+    if actions is None:
+        return None
+    plan = Plan(turns_in(actions), actions, f"beam{width}")
+    verify_to(seed, plan, target)
+    return plan
+
+
+def beam_from(start: Game, width: int = 100, max_turns: int = 80,
+              moves: Moves = playable_moves) -> Optional[tuple]:
+    """beam(), from any position: the actions of the shortest win it finds
+    from `start`, or None. `start` is not modified. Used to re-plan
+    mid-game (solver.guide), where there is no seed to start over from."""
+    weights, scales = _scorer()
+    layer = [(fast_clone(start), ())]
     with _solo_scoring():
         for _ in range(max_turns):
             candidates: dict = {}          # key -> (score, game, actions)
@@ -138,9 +151,7 @@ def beam(seed: int, width: int = 100, max_turns: int = 80,
                     child.apply_action(action)
                     path = acts + (action,)
                     if child.game_over:
-                        plan = Plan(turns_in(path), path, f"beam{width}")
-                        verify_to(seed, plan, target)
-                        return plan
+                        return path
                     if child.pending_discard is not None:
                         # the discard is part of this turn: expand it here
                         frontier.append((child, path))

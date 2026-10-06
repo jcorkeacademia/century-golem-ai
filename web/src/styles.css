@@ -173,6 +173,15 @@ body {
 }
 /* 1 opponent: a single full-height, centered slot on the left — the right
    column is simply left unused rather than reserving dead space for it. */
+/* 0 opponents: only ever a guided TEST room (server/guided.py) — the centre
+   board gets the full width. No ordinary game has fewer than 1 opponent. */
+.table-layout.layout-opp-0 {
+  grid-template-areas:
+    'center center center'
+    'center center center'
+    'me me me'
+    'strip strip strip';
+}
 .table-layout.layout-opp-1 {
   grid-template-areas:
     'leftFull center .'
@@ -1743,7 +1752,7 @@ button:hover:not(:disabled) {
 .join-input::placeholder { color: var(--join-ink-dim); }
 .join-input:focus {
   border-color: var(--turn-gold);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35), 0 0 0 3px rgba(224, 177, 85, 0.25);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
 }
 .join-counter {
   position: absolute;
@@ -1939,9 +1948,10 @@ button:hover:not(:disabled) {
   border-top: 1px solid var(--join-line);
 }
 
-/* Same brass-plate gradient as .rest-button-below — a real physical button
-   on the table, not a flat "candy button" fill — so the start screen's one
-   call-to-action already looks like part of the same game. */
+/* Flat, not the glossy brass-plate gradient used in-game (.rest-button-below
+   etc.) — the join screen is the first thing anyone sees, so it gets a
+   quieter, more restrained version of the same gold rather than the full
+   shiny-bevel treatment. */
 .join-btn {
   font: inherit;
   font-size: 13px;
@@ -1949,16 +1959,16 @@ button:hover:not(:disabled) {
   letter-spacing: 0.07em;
   text-transform: uppercase;
   padding: 14px 28px;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   color: #3a2f20;
   border: 1px solid var(--gold-deep);
-  background: linear-gradient(180deg, #f3cb80 0%, var(--turn-gold) 52%, var(--gold-deep) 100%);
-  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  background: var(--turn-gold);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   transition: filter 0.14s ease, transform 0.05s ease, box-shadow 0.05s ease;
 }
-.join-btn:hover:not(:disabled) { filter: brightness(1.06); }
-.join-btn:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); }
+.join-btn:hover:not(:disabled) { filter: brightness(1.05); }
+.join-btn:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
 .join-btn:focus-visible { outline: 2px solid var(--join-gold-deeper); outline-offset: 3px; }
 .join-btn:disabled {
   background: #4a4034;
@@ -2509,4 +2519,584 @@ button:hover:not(:disabled) {
 .golem-zoom-close:hover {
   border-color: var(--turn-gold);
   color: var(--turn-gold);
+}
+
+
+/* ---------- guided TEST rooms (server/guided.py) ----------
+   Only ever applied when the server sends state.guide, which it does for
+   TEST rooms alone — ordinary games never get these classes. */
+@keyframes guide-pulse {
+  0%, 100% { outline-color: #e53935; box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.55); }
+  50% { outline-color: #ff6f60; box-shadow: 0 0 14px 4px rgba(229, 57, 53, 0.45); }
+}
+.guide-target > .card-visual,
+.rest-button-below.guide-target {
+  outline: 4px solid #e53935;
+  outline-offset: 3px;
+  animation: guide-pulse 1.4s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
+}
+.guide-banner {
+  position: fixed;
+  top: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  max-width: min(760px, 92vw);
+  padding: 0.55rem 1rem 0.5rem;
+  border: 2px solid #e53935;
+  border-radius: 10px;
+  background: rgba(24, 18, 14, 0.94);
+  color: #f5ecdc;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.45);
+  text-align: center;
+  pointer-events: none;
+}
+.guide-banner.guide-replanning { border-color: #f2b233; }
+.guide-banner.guide-finished { border-color: #7cb342; }
+.guide-meta {
+  display: flex;
+  gap: 0.9rem;
+  justify-content: center;
+  font-size: 0.75rem;
+  opacity: 0.8;
+  letter-spacing: 0.02em;
+}
+.guide-tag { color: #ff8a80; font-weight: 700; }
+.guide-text { font-size: 1.02rem; font-weight: 600; margin-top: 0.2rem; }
+.guide-note { font-size: 0.82rem; color: #f2b233; margin-top: 0.25rem; }
+.guide-source { font-size: 0.68rem; opacity: 0.55; margin-top: 0.2rem; }
+
+/* ---------- interactive tutorial (TutorialOverlay.jsx) ---------- */
+/* Two layers, both under .dialog-scrim (100) so the trade/claim dialogs and
+   the Final Tally still open on top during scene 11's free play:
+   - .tut-stage (95): a staged page centred over the dimmed board (scenes
+     1-5, 8), the same walnut-and-gold card as the start screen;
+   - the board coach (89-92): a click blocker while a step only wants Next,
+     a highlight ring that dims everything around it, and the text bubble. */
+.tut-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow-y: auto;
+  /* The game board stays visible behind the page, dimmed like the dialogs
+     dim it, so the tutorial reads as happening at the table. */
+  background: rgba(28, 23, 17, 0.55);
+}
+.tut-stage-panel {
+  width: 600px;
+  max-width: 100%;
+  margin: auto;
+  color: var(--join-ink);
+  background-color: var(--join-card);
+  background-image: var(--noise);
+  background-blend-mode: overlay;
+  /* Gold edge, like the board bubbles — walnut on the dimmed walnut board
+     needs it to stand apart. */
+  border: 1px solid var(--turn-gold);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 36px rgba(0, 0, 0, 0.55);
+  padding: 26px 32px 24px;
+  --card-w: 150px;
+}
+.tut-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--join-ink-dim);
+  margin-bottom: 6px;
+}
+
+.tut-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--join-ink-dim);
+}
+.tut-step { letter-spacing: 0.06em; text-transform: uppercase; }
+.tut-skip {
+  font: inherit;
+  font-size: 12px;
+  color: var(--join-ink-dim);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.tut-skip:hover { color: var(--turn-gold); }
+.tut-title {
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  font-size: 26px;
+  margin: 8px 0 10px;
+  text-wrap: balance;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+.tut-text {
+  margin: 0 0 10px;
+  line-height: 1.5;
+  font-size: 15px;
+  text-wrap: pretty;
+}
+.tut-text strong { color: var(--turn-gold); }
+.tut-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+.tut-foot-buttons { display: flex; gap: 10px; margin-left: auto; }
+.tut-next {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  padding: 11px 26px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: #3a2f20;
+  border: 1px solid var(--gold-deep);
+  background: var(--turn-gold);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.tut-next:hover:not(:disabled) { filter: brightness(1.05); }
+.tut-next:disabled {
+  background: #4a4034;
+  border-color: #5a4f3f;
+  color: #9a8f7c;
+  cursor: default;
+}
+.tut-feedback {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.tut-feedback-ok { background: rgba(63, 174, 74, 0.18); color: #9fe0a6; border: 1px solid rgba(63, 174, 74, 0.5); }
+.tut-feedback-bad { background: rgba(224, 69, 63, 0.15); color: #ffb3ae; border: 1px solid rgba(224, 69, 63, 0.5); }
+
+/* Staged caravans: the opponent-panel CaravanGrid (5 x 2), at a size you
+   can actually read and click. */
+.tut-stage .caravan-grid {
+  gap: 8px;
+  padding: 10px;
+  border-radius: 12px;
+}
+.tut-stage .caravan-grid .slot {
+  width: 44px;
+  height: 44px;
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.62);
+}
+.tut-pop { animation: tut-pop 0.35s ease-out both; }
+@keyframes tut-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Scenes 1-4 (OpeningScene), laid out from the owner's sketch: a tall text
+   box on the left, from near the top of the screen down to just above the
+   player's mat, holding the words and the caravan; the Double Upgrade, big,
+   in the open space to its right, level with the box's middle. Sized in
+   viewport units so the proportions hold from a small laptop to a large
+   monitor. The card's column is reserved from scene 2, so the box never
+   moves when it arrives. (Scene 1 is a centred box of its own — see
+   .tut-opening-welcome below.) */
+.tut-stage.tut-opening {
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 1.5vh 4vw 24px 11vw;
+  /* Sizes follow the screen's height as well as its width, so two steps'
+     words and the caravan fit the box on shorter screens too. */
+  --sock: clamp(36px, min(3.4vw, 4.4vh), 72px);
+}
+.tut-opening-row {
+  display: flex;
+  align-items: center;
+  gap: 7vw;
+}
+
+/* Every tutorial box is a "page" (TutorialOverlay.jsx's StepText): the
+   opening box, the card-types box and the box on the board alike. One
+   spacing scale for everything in it, so a page reads as blocks rather than
+   a run of equal gaps:
+     --sp-1  a heading to its words; an intro line to its list
+     --sp-2  the header line to the page; words to the caravan or to a
+             "Try it" line; the footer divider to its contents
+     --sp-3  one step's block to the next; the page to the footer divider */
+.tut-page {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(22px, min(2.2vw, 3.2vh), 44px) clamp(24px, 2.6vw, 56px);
+  --tut-font: clamp(15px, min(1.3vw, 1.6vh), 22px);
+  --sp-1: clamp(6px, 0.9vh, 12px);
+  --sp-2: clamp(12px, 1.8vh, 24px);
+  --sp-3: clamp(18px, 2.4vh, 38px);
+}
+.tut-opening-panel {
+  flex: 0 0 auto;
+  width: clamp(380px, 32vw, 780px);
+  /* Fallback only: OpeningScene stretches the box to the mat's top edge. */
+  min-height: 62vh;
+  margin: 0;
+}
+.tut-page .tut-head { font-size: 13px; margin-bottom: var(--sp-2); }
+.tut-page .tut-eyebrow { margin: 0; }
+.tut-page .tut-title {
+  font-size: clamp(23px, min(2.2vw, 2.5vh), 42px);
+  line-height: 1.15;
+  margin: 0 0 var(--sp-1);
+}
+.tut-page .tut-body { font-size: var(--tut-font); }
+.tut-page .tut-text { font-size: var(--tut-font); line-height: 1.5; margin: 0; }
+.tut-page .tut-text + .tut-text { margin-top: 0.6em; }
+/* Each step's block starts a new block — except the first thing on the
+   page, which the header's own gap already spaces. */
+.tut-page > .tut-section { margin-top: var(--sp-3); }
+.tut-page > .tut-opening-caravan { margin-top: var(--sp-2); }
+.tut-page > .tut-head + * { margin-top: 0; }
+.tut-page > .tut-objectives { margin-top: var(--sp-1); }
+/* Whatever sits just above the footer keeps the same clear gap above its
+   divider. Matched by position (the panel's second-to-last child, the
+   footer being last), never by type, so nothing earlier on the page shifts
+   when a new step's words are added under it. */
+.tut-page > :nth-last-child(2) { margin-bottom: var(--sp-3); }
+.tut-page .tut-foot {
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--join-line);
+}
+/* The step's exact move ("Try it: …"), set apart under its words; a
+   refusal takes its place in red. */
+.tut-page .tut-instruction-stack {
+  display: grid;
+  margin-top: var(--sp-2);
+}
+.tut-page .tut-instruction-stack > * { grid-area: 1 / 1; }
+.tut-hidden { visibility: hidden; }
+.tut-page .tut-instruction {
+  margin: 0;
+  padding: 0.15em 0 0.15em 0.9em;
+  border-left: 3px solid var(--turn-gold);
+  font-size: var(--tut-font);
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--turn-gold);
+}
+.tut-page .tut-instruction-bad { border-left-color: #e0453f; color: #ffb3ae; }
+/* A later step's words, drawn invisibly so the box is already its full size. */
+.tut-reserve { visibility: hidden; }
+.tut-page .tut-foot .tut-step {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--join-ink-dim);
+}
+.tut-page .tut-next { font-size: 14px; padding: 13px 34px; }
+
+/* The caravan: left-aligned with the words, its full height held open from
+   the moment it appears, top-aligned in its row so nothing beside it (the
+   exercise's controls and messages) can ever nudge it. Gaps and tray
+   padding grow with the sockets, so it keeps its proportions at any size. */
+.tut-opening-caravan {
+  min-height: calc(2.56 * var(--sock));
+  display: flex;
+  align-items: flex-start;
+  gap: calc(0.35 * var(--sock));
+}
+.tut-opening-caravan .caravan-grid {
+  gap: calc(0.16 * var(--sock));
+  padding: calc(0.2 * var(--sock));
+  border-radius: calc(0.24 * var(--sock));
+}
+.tut-opening-caravan .caravan-grid .slot {
+  width: var(--sock);
+  height: var(--sock);
+}
+
+.tut-opening-side {
+  flex: 0 0 auto;
+  width: clamp(220px, 19vw, 470px);
+  display: flex;
+  justify-content: center;
+}
+.tut-opening-card {
+  --card-w: clamp(220px, 19vw, 470px);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(10px, 1.4vh, 18px);
+}
+
+/* Short screens (a 1440x900 laptop): the opening box has less height to
+   fill down to the mat, so its spacing tightens a step to keep the
+   exercise inside it. */
+@media (max-height: 960px) {
+  .tut-stage.tut-opening { --sock: clamp(34px, min(3.4vw, 4.2vh), 72px); }
+  .tut-opening-panel {
+    --sp-2: clamp(10px, 1.5vh, 24px);
+    --sp-3: clamp(14px, 1.9vh, 38px);
+  }
+}
+
+/* Scene 1 only: the welcome on its own, a wide box in the middle of the
+   screen sized to its words — same scale, roomier steps. No caravan space
+   and no card column yet; those arrive with the left-hand layout at
+   scene 2. */
+.tut-stage.tut-opening-welcome {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.tut-opening-welcome .tut-opening-row { justify-content: center; }
+.tut-opening-welcome .tut-opening-panel {
+  width: clamp(440px, 40vw, 840px);
+  min-height: 0;
+  padding: clamp(32px, 2.8vw, 56px) clamp(36px, 3.2vw, 64px) clamp(26px, 2.2vw, 44px);
+  --tut-font: clamp(18px, 1.4vw, 24px);
+  --sp-1: clamp(10px, 1.4vh, 18px);
+  --sp-2: clamp(18px, 2.6vh, 34px);
+  --sp-3: clamp(26px, 3.6vh, 46px);
+}
+.tut-opening-welcome .tut-title { font-size: clamp(36px, 3.2vw, 60px); }
+.tut-opening-welcome .tut-body { min-height: 0; }
+.tut-opening-welcome .tut-opening-caravan,
+.tut-opening-welcome .tut-opening-side { display: none; }
+
+/* The card has to hold its own against the dimmed board behind it. */
+.tut-opening-card .card-visual {
+  border-color: var(--turn-gold);
+  box-shadow: 0 0 0 3px rgba(224, 177, 85, 0.25), 0 16px 36px rgba(0, 0, 0, 0.55);
+}
+.tut-opening-card figcaption {
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  font-size: clamp(18px, min(1.4vw, 2.2vh), 30px);
+  font-weight: 700;
+  text-transform: capitalize;
+  color: var(--join-ink);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+/* Scene 4: the upgrade exercise, in the opening box on the caravan already
+   there. Objectives are a plain list, ticked as they're done, in any order;
+   Confirm/× and the hint sit beside the caravan, sized with the box's own
+   text rather than the board's small print, so starting to pick never
+   moves anything. */
+.tut-objectives {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: var(--tut-font, 17px);
+  line-height: 1.38;
+  color: var(--join-ink);
+}
+.tut-objectives li::before {
+  content: '○';
+  display: inline-block;
+  width: 1.4em;
+  color: var(--join-ink-dim);
+}
+.tut-objective-done { color: #9fe0a6; }
+.tut-objectives li.tut-objective-done::before { content: '✓'; color: #9fe0a6; }
+/* Centred on the caravan beside it (the caravan itself stays top-aligned). */
+.tut-caravan-controls {
+  align-self: center;
+  flex: 1 1 140px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  font-size: calc(0.78 * var(--tut-font, 17px));
+}
+.tut-caravan-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tut-caravan-buttons .upgrade-confirm-btn {
+  flex: 0 0 auto;
+  font-size: calc(0.68 * var(--tut-font, 17px));
+  padding: 0.65em 1.8em;
+}
+.tut-caravan-buttons .upgrade-cancel-btn {
+  width: 2.1em;
+  height: 2.1em;
+  font-size: calc(0.75 * var(--tut-font, 17px));
+}
+.tut-caravan-controls .tut-hint {
+  display: block;
+  margin: 0;
+  font-size: inherit;
+  text-align: left;
+}
+.tut-inline-feedback {
+  font-size: inherit;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.tut-inline-ok { color: #9fe0a6; }
+.tut-inline-bad { color: #ffb3ae; }
+/* "Click me": the Double Upgrade pulses red until it's been clicked. */
+.tut-attention .card-visual,
+.tut-opening-card.tut-attention .card-visual {
+  animation: guide-pulse 1.4s ease-in-out infinite;
+  border-color: #e53935;
+}
+.tut-opening-card .card-visual.clickable { cursor: pointer; }
+
+/* Scene 8 (CardsScene): the box where the opening box was, sized to its
+   words, with one short block per kind of card; the three cards side by
+   side to its right, each named underneath, level with the box's middle. */
+.tut-cards-panel { min-height: 0; }
+.tut-kinds {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.tut-subtitle {
+  margin: 0 0 0.2em;
+  font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', serif;
+  font-size: calc(1.05 * var(--tut-font));
+  color: var(--turn-gold);
+}
+.tut-kind .tut-text { margin: 0; }
+.tut-cards-side {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(14px, 1.6vw, 32px);
+}
+.tut-cards-side .tut-opening-card { --card-w: clamp(120px, 10.5vw, 250px); }
+
+/* The board coach. */
+.tut-blocker {
+  position: fixed;
+  inset: 0;
+  z-index: 89;
+}
+.tut-ring {
+  position: fixed;
+  z-index: 90;
+  pointer-events: none;
+  border: 3px solid var(--turn-gold);
+  border-radius: 12px;
+  box-shadow: 0 0 0 4px rgba(224, 177, 85, 0.25);
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+/* Everything but the highlighted part fades back — only while the step is
+   for reading, never while the player has to drag from the caravan. */
+.tut-ring-dim { box-shadow: 0 0 0 4px rgba(224, 177, 85, 0.25), 0 0 0 200vmax rgba(20, 16, 11, 0.5); }
+.tut-ring-circle { border-radius: 50%; border-color: #e53935; box-shadow: 0 0 0 4px rgba(229, 57, 53, 0.25); }
+/* The board box: the same page, a size more compact than the opening box —
+   it sits over a live board and has to fit above or below a row of cards —
+   and a little wider, so its lines wrap less. */
+.tut-page.tut-bubble {
+  padding: clamp(18px, min(1.6vw, 2.4vh), 32px) clamp(20px, 1.8vw, 40px);
+  --tut-font: clamp(15px, min(1.1vw, 1.5vh), 19px);
+  --sp-1: clamp(4px, 0.7vh, 10px);
+  --sp-2: clamp(10px, 1.4vh, 18px);
+  --sp-3: clamp(14px, 2.1vh, 28px);
+}
+.tut-page.tut-bubble .tut-title { font-size: clamp(20px, min(1.7vw, 2.3vh), 32px); }
+.tut-bubble {
+  position: fixed;
+  z-index: 92;
+  width: clamp(380px, 32vw, 760px);
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  color: var(--join-ink);
+  background-color: var(--join-card);
+  background-image: var(--noise);
+  background-blend-mode: overlay;
+  border: 1px solid var(--turn-gold);
+  border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+}
+.tut-pill {
+  position: fixed;
+  top: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 92;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  color: var(--join-ink);
+  background: var(--join-card);
+  border: 1px solid var(--turn-gold);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Final Tally's tutorial buttons (GameOverOverlay.jsx's `actions`). */
+.gameover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gameover-close:disabled {
+  background: #4a4034;
+  border-color: #5a4f3f;
+  color: #7a6f5c;
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: none;
+}
+
+/* StartScreen's "How to play" entry. */
+.join-howto {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--join-ink-dim);
+}
+.join-howto-btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--turn-gold);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .tut-stage-panel { padding: 20px 18px; }
+  .tut-cards-side { flex-wrap: wrap; justify-content: center; }
+  .tut-cards-side .tut-opening-card { --card-w: 96px; }
+  .tut-stage.tut-opening { padding: 16px; }
+  .tut-opening-row { flex-direction: column; gap: 20px; width: 100%; }
+  .tut-opening-panel,
+  .tut-opening-welcome .tut-opening-panel { width: 100%; min-height: 0; }
+  .tut-page .tut-body { min-height: 0; }
+  .tut-opening-caravan { min-height: 0; }
+  .tut-opening-side { width: auto; }
+  .tut-opening-card { --card-w: 150px; }
+  .tut-opening-card figcaption { font-size: 18px; }
+  .tut-opening-caravan { flex-wrap: wrap; }
+  .tut-stage .caravan-grid .slot { width: 36px; height: 36px; }
+  .tut-title { font-size: 22px; }
 }

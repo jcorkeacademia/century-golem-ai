@@ -29,6 +29,7 @@ export default function MePanel({
   draggingCaravanIndex = null,
   onRest,
   turnClock,
+  guideAction = null, // guided TEST rooms only: the plan's next move
 }) {
   function handleHandCardClick(card) {
     if (!isCurrent) return
@@ -169,7 +170,9 @@ export default function MePanel({
                 {orderedHand.map((card) => (
                   <div
                     key={card.hand_index}
-                    className={`hand-card-slot${dragKey === card.hand_index ? ' dragging' : ''}`}
+                    className={`hand-card-slot${dragKey === card.hand_index ? ' dragging' : ''}${
+                      guideAction?.kind === 'play' && guideAction.hand_index === card.hand_index ? ' guide-target' : ''
+                    }`}
                     draggable
                     onDragStart={() => setDragKey(card.hand_index)}
                     onDragEnd={() => setDragKey(null)}
@@ -238,7 +241,11 @@ export default function MePanel({
             </div>
           </div>
           {onRest && (
-            <button className="rest-button-below" onClick={onRest} disabled={player.played.length === 0}>
+            <button
+              className={`rest-button-below${guideAction?.kind === 'rest' ? ' guide-target' : ''}`}
+              onClick={onRest}
+              disabled={player.played.length === 0}
+            >
               Reset
             </button>
           )}

@@ -29,6 +29,8 @@ from serialize import game_to_state
 from actions import build_action, MalformedAction
 from simulate import play_to_end
 from bot_policy import DEFAULT_DIFFICULTY, normalise as normalise_difficulty, pick_action
+import guided
+import tutorial as tutorial_mode  # `tutorial` is also ws_room's query param
 
 # Pacing for solo mode's auto-played bot seats (see _play_bots) — long enough
 # to actually watch a card land before the next one does, short enough that
@@ -44,6 +46,11 @@ DEFAULT_AVATAR = "gem"  # avatars.js's AVATARS[0] — used only if a client ever
 # the engine's own output folders rather than duplicating them under web/ —
 # card_art.py already knows where they live, so this stays correct if they move.
 app.mount("/static/golems", StaticFiles(directory=str(card_art.GOLEM_DIR)), name="golem-art")
+# Painted set for rooms with 5+ character codes (card_art_index.uses_gol_art). check_dir off
+# so a checkout that hasn't run make_cards.py / make_merchants.py --set gol
+# still starts.
+app.mount("/static/golems-gol", StaticFiles(directory=str(card_art.GOL_GOLEM_DIR), check_dir=False), name="golem-art-gol")
+app.mount("/static/merchants-gol", StaticFiles(directory=str(card_art.GOL_MERCH_DIR), check_dir=False), name="merchant-art-gol")
 app.mount("/static/merchants", StaticFiles(directory=str(card_art.MERCH_DIR)), name="merchant-art")
 # Same 4 crystal icons make_cards.py/make_merchants.py stamp onto the card
 # art itself (CARD_ART_HANDOVER.md §1) — reused as-is for the caravan/cost
@@ -76,8 +83,7 @@ async def debug_simulate(room_id: str, max_actions: int = 5000) -> dict:
     # passed since before this whole burst, wildly inflating one seat's total.
     room.turn_clock_started = time.monotonic()
 
-    for s in list(room.sockets.keys()):
-        await room.sockets[s].send_json(game_to_state(room, s))
+    await _push_state(room)
 
     return {
         "status": "ok",
@@ -105,10 +111,22 @@ async def debug_reset(room_id: str) -> dict:
     room.accumulated_seconds = {}
     room.turn_clock_started = time.monotonic()
 
-    for s in list(room.sockets.keys()):
-        await room.sockets[s].send_json(game_to_state(room, s))
+    await _push_state(room)
 
     return {"status": "ok", "room_id": room_id, "current": room.game.current}
+
+
+async def _push_state(room: Room) -> None:
+    """Send every connected seat its own view of the game. One dead socket
+    (a dropped tunnel connection raises on send) must never stop the others
+    from getting the update — otherwise everyone else is left showing a stale
+    "Waiting for other players" until they refresh."""
+    for s, sock in list(room.sockets.items()):
+        try:
+            await sock.send_json(game_to_state(room, s))
+        except Exception:
+            if room.sockets.get(s) is sock:
+                room.sockets.pop(s, None)
 
 
 async def _error(websocket: WebSocket, code: str, message: str, echo: Optional[dict] = None) -> None:
@@ -134,10 +152,20 @@ async def _attach(room_id: str, name: str, avatar: str, websocket: WebSocket) ->
 
     seat = room.find_seat(name)
     if seat is not None:
-        if seat in room.sockets:
-            await _error(websocket, "name_taken", f"{name!r} is already connected in room {room_id!r}")
-            await websocket.close()
-            return None, None
+        old = room.sockets.get(seat)
+        if old is not None:
+            if not room.started:
+                await _error(websocket, "name_taken", f"{name!r} is already connected in room {room_id!r}")
+                await websocket.close()
+                return None, None
+            # Mid-game, a socket still registered for this name is almost
+            # always a dead one the server hasn't noticed yet (tunnel drops
+            # leave half-open connections) — rejecting the reconnect would
+            # lock the player out until it times out, so the newest wins.
+            try:
+                await old.close()
+            except Exception:
+                pass
     elif room.started:
         await _error(websocket, "already_started", f"room {room_id!r} has already started")
         await websocket.close()
@@ -158,15 +186,19 @@ async def _broadcast_lobby(room: Room) -> None:
         {"seat": i, "name": n, "avatar": room.avatars[i], "connected": i in room.sockets}
         for i, n in enumerate(room.names)
     ]
-    for s, sock in room.sockets.items():
-        await sock.send_json({
-            "type": "lobby",
-            "room": room.room_id,
-            "you": s,
-            "seats": seats,
-            "host": HOST_SEAT,
-            "started": room.started,
-        })
+    for s, sock in list(room.sockets.items()):
+        try:
+            await sock.send_json({
+                "type": "lobby",
+                "room": room.room_id,
+                "you": s,
+                "seats": seats,
+                "host": HOST_SEAT,
+                "started": room.started,
+            })
+        except Exception:
+            if room.sockets.get(s) is sock:
+                room.sockets.pop(s, None)
 
 
 def _credit_turn_time(room: Room, acting_seat: int) -> None:
@@ -193,8 +225,23 @@ async def ws_room(
     solo: bool = Query(False),
     players: int = Query(4),
     difficulty: str = Query(DEFAULT_DIFFICULTY),
+    tutorial: bool = Query(False),
 ) -> None:
     await websocket.accept()
+
+    # ?tutorial=true: the interactive tutorial (tutorial.py), a recorded game
+    # with text at every step. Nothing below this changes for any other room.
+    if tutorial:
+        await tutorial_mode.run(websocket, room_id, name, avatar, _credit_turn_time)
+        return
+
+    # Room code TEST / TEST<n>, joined by code (not practice mode): a guided
+    # solo game of seed n with the solver's best plan shown (guided.py).
+    # Nothing below this line changes for any other room.
+    guided_seed = None if solo else guided.seed_for(room_id)
+    if guided_seed is not None:
+        await guided.run(websocket, room_id, name, avatar, guided_seed, _credit_turn_time)
+        return
 
     if solo:
         await _run_solo(websocket, room_id, name, avatar, players, difficulty)
@@ -207,8 +254,7 @@ async def ws_room(
     if room.game is not None:
         # Fresh game just started, or this is a seat reclaiming its spot
         # after a disconnect (§4: "on reconnect, resend current state").
-        for s, sock in room.sockets.items():
-            await sock.send_json(game_to_state(room, s))
+        await _push_state(room)
     else:
         await _broadcast_lobby(room)
 
@@ -219,7 +265,10 @@ async def ws_room(
     except WebSocketDisconnect:
         pass
     finally:
-        room.sockets.pop(seat, None)
+        # Only release the seat if it's still this socket's — a reconnect may
+        # already have taken it over (see _attach).
+        if room.sockets.get(seat) is websocket:
+            room.sockets.pop(seat, None)
         if not room.sockets and room.game is None:
             ROOMS.pop(room_id, None)
         elif not room.started:
@@ -306,6 +355,10 @@ async def _handle_solo_message(room: Room, msg: dict) -> None:
                                    "message": "message must be an object with a 'type' field", "echo": msg})
         return
 
+    if msg["type"] == "ping":
+        await room.send_to(seat, {"type": "pong"})
+        return
+
     if msg["type"] == "start":
         return  # already started the moment the socket connected — a no-op here
 
@@ -344,6 +397,12 @@ async def _handle_message(room: Room, seat: int, msg: dict) -> None:
                                    "message": "message must be an object with a 'type' field", "echo": msg})
         return
 
+    if msg["type"] == "ping":
+        # Client keepalive — tunnels drop idle websockets (a long think is
+        # enough), so the client pings and this just answers.
+        await room.send_to(seat, {"type": "pong"})
+        return
+
     if msg["type"] == "start":
         await _handle_start(room, seat)
         return
@@ -378,8 +437,7 @@ async def _handle_message(room: Room, seat: int, msg: dict) -> None:
 
     _credit_turn_time(room, seat)
 
-    for s in list(room.sockets.keys()):
-        await room.sockets[s].send_json(game_to_state(room, s))
+    await _push_state(room)
 
 
 async def _handle_start(room: Room, seat: int) -> None:
@@ -399,5 +457,4 @@ async def _handle_start(room: Room, seat: int) -> None:
     room.accumulated_seconds = {}
     room.turn_clock_started = time.monotonic()
 
-    for s in list(room.sockets.keys()):
-        await room.sockets[s].send_json(game_to_state(room, s))
+    await _push_state(room)

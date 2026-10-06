@@ -70,7 +70,7 @@ MERCHANT_CARDS = [
     TradeCard(((M, 1),), ((B, 1), (Y, 3)), "1M->1B3Y"),              # 34
     TradeCard(((G, 1), (Y, 1)), ((M, 1),), "1G1Y->1M"),              # 35
     CrystalCard(((Y, 3),), "+3Y"),                                   # 36
-    TradeCard(((Y, 4),), ((B, 3),), "4Y->3B"),                       # 37
+    TradeCard(((Y, 5),), ((B, 3),), "5Y->3B"),                       # 37
     CrystalCard(((Y, 4),), "+4Y"),                                   # 38
     TradeCard(((B, 1), (Y, 2)), ((M, 2),), "1B2Y->2M"),              # 39
     CrystalCard(((G, 1), (Y, 2)), "+1G2Y"),                          # 40

@@ -116,6 +116,23 @@ OUT      = ROOT / "out"
 
 IMG_EXT = (".png", ".jpg", ".jpeg", ".webp", ".PNG", ".JPG", ".JPEG")
 
+# --------------------------------------------------------------------------
+# ART SETS -- pick one with --set NAME (default: photos).
+#   photos  the face deck: photos/ + cards.csv -> out/
+#   gol     painted backgrounds for the DEFAULT room (server/card_art_index.py):
+#           ../gol/backgrounds + ../gol/cards.csv -> ../gol/out/
+# The gol paintings still show faint smudges where their original crystal
+# row was painted out, so that set crops from the bottom and spaces the
+# crystals at the original pitch to land the new ones right on top of them.
+# --------------------------------------------------------------------------
+GOL = ROOT.parent / "gol"
+ART_SETS = {
+    "photos": dict(PHOTOS=PHOTOS, MAPPING=ROOT / "cards.csv", OUT=OUT),
+    "gol":    dict(PHOTOS=GOL / "backgrounds", MAPPING=GOL / "cards.csv",
+                   OUT=GOL / "out", PHOTO_ANCHOR=1.0, CRYSTAL_GAP=34,
+                   CRYSTAL_Y=0.91),
+}
+
 
 # --------------------------------------------------------------------------
 def find_asset(folder: Path, stem: str):
@@ -306,7 +323,20 @@ def load_mapping():
     return out
 
 
+def select_art_set():
+    """Apply --set NAME from ART_SETS over the module-level settings."""
+    name = "photos"
+    if "--set" in sys.argv:
+        i = sys.argv.index("--set")
+        if i + 1 >= len(sys.argv) or sys.argv[i + 1] not in ART_SETS:
+            sys.exit(f"--set takes one of: {', '.join(ART_SETS)}")
+        name = sys.argv[i + 1]
+    globals().update(ART_SETS[name])
+    print(f"Art set: {name}")
+
+
 def main():
+    select_art_set()
     check_only = "--check" in sys.argv
     if "--init" in sys.argv:
         write_template()

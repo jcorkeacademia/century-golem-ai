@@ -26,6 +26,10 @@ from century_engine import (
 ROOT       = Path(__file__).parent
 GOLEM_DIR  = ROOT / "out"
 MERCH_DIR  = ROOT / "out_merchants"
+# Painted set for the DEFAULT room (make_cards.py / make_merchants.py
+# --set gol) -- same filenames as GOLEM_DIR / MERCH_DIR.
+GOL_GOLEM_DIR = ROOT.parent / "gol" / "out"
+GOL_MERCH_DIR = ROOT.parent / "gol" / "out_merchants"
 
 # Letter keys used by the art scripts -> engine crystals.
 # NOTE: "B" is the physical blue crystal, which the engine calls TURQUOISE.
@@ -121,7 +125,7 @@ MERCHANT_SLOTS = [
     ("trade", {"B": 3}, {"M": 3}, 0),
     ("trade", {"M": 2}, {"G": 3, "B": 2}, 0),
     ("trade", {"M": 2}, {"Y": 1, "G": 1, "B": 3}, 0),
-    ("trade", {"Y": 4}, {"B": 3}, 0),
+    ("trade", {"Y": 5}, {"B": 3}, 0),
     ("crystal", {}, {"Y": 2}, 0),     # 44  Create 2  (starting card)
     ("upgrade", {}, {}, 2),           # 45  Upgrade 2 (starting card)
 ]

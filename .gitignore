@@ -1,10 +1,13 @@
-# --- Card-art assets (426 MB; regenerable from make_cards.py / make_merchants.py) ---
-# Source photos and generated card PNGs are kept on disk but never tracked.
+# --- Card-art assets ---
+# Generated card PNGs (engine/out*, gol/out*) are tracked — the server serves
+# them. Source photos, backgrounds and print-sheet PDFs stay on disk only.
 golem-cards/
-engine/out/
-engine/out_merchants/
 engine/photos/
 engine/photos_merchants/
+gol/backgrounds/
+gol/merchant_backgrounds/
+mer/
+*_print.pdf
 
 # --- Python ---
 __pycache__/

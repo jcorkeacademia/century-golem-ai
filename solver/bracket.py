@@ -27,13 +27,13 @@ import time
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
-from bots._engine import (Acquire, Claim, Crystal, Discard, PlayCrystal,
-                          PlayTrade, PlayUpgrade, Rest)
 from solver.bound import h
 from solver.chain import chain
 from solver.flow import flow_bound
 from solver.greedy import Plan, upper_bound, verify
 from solver.improve import beam, repair
+from solver.plans import action_from_json, action_to_json  # noqa: F401  (re-exported)
+from solver.plans import partial_upgrades
 from solver.solo import new_solo_game, turns_in
 
 # Top level of results/, where .gitignore tracks small evidence files.
@@ -43,41 +43,6 @@ OUT = Path(__file__).resolve().parent.parent / "results"
 # ---------------------------------------------------------------------------
 # Plans in and out of JSON, so a saved upper bound can be checked by replay
 # ---------------------------------------------------------------------------
-
-def action_to_json(a) -> dict:
-    if isinstance(a, PlayCrystal):
-        return {"play": "crystal", "hand": a.hand_index}
-    if isinstance(a, PlayUpgrade):
-        return {"play": "upgrade", "hand": a.hand_index, "upgrades": [int(c) for c in a.upgrades]}
-    if isinstance(a, PlayTrade):
-        return {"play": "trade", "hand": a.hand_index, "times": a.times}
-    if isinstance(a, Acquire):
-        return {"acquire": a.row_index, "payment": [int(c) for c in a.payment]}
-    if isinstance(a, Rest):
-        return {"rest": True}
-    if isinstance(a, Claim):
-        return {"claim": a.row_index}
-    if isinstance(a, Discard):
-        return {"discard": list(a.counts)}
-    raise TypeError(a)
-
-
-def action_from_json(d: dict):
-    if "play" in d:
-        kind = d["play"]
-        if kind == "crystal":
-            return PlayCrystal(d["hand"])
-        if kind == "upgrade":
-            return PlayUpgrade(d["hand"], tuple(Crystal(c) for c in d["upgrades"]))
-        return PlayTrade(d["hand"], d["times"])
-    if "acquire" in d:
-        return Acquire(d["acquire"], tuple(Crystal(c) for c in d["payment"]))
-    if "rest" in d:
-        return Rest()
-    if "claim" in d:
-        return Claim(d["claim"])
-    return Discard(tuple(d["discard"]))
-
 
 def replay_saved(seed: int, saved: list[dict]) -> int:
     """Replay a saved plan; return its turns, or raise if it is not a win."""
@@ -100,7 +65,11 @@ def bracket(seed: int, width: int = 1000) -> dict:
     beamed = repair(seed, beam(seed, width), 2_000)
     chained = chain(seed).plan
     candidates = {"bots": bots, f"beam{width}+repair": beamed, "chain": chained}
-    method, best = min(candidates.items(), key=lambda kv: kv[1].turns)
+    # Only plans a player could actually make: the bots play by the engine's
+    # looser "up to N" upgrade rule, so a partial upgrade rules a plan out.
+    playable = {k: p for k, p in candidates.items()
+                if not partial_upgrades(opening, p.actions)}
+    method, best = min(playable.items(), key=lambda kv: kv[1].turns)
     verify(seed, best)
 
     lower = max(lower_h, lower_flow)
@@ -112,6 +81,7 @@ def bracket(seed: int, width: int = 1000) -> dict:
         "candidates": {k: p.turns for k, p in candidates.items()},
         "plan": [action_to_json(a) for a in best.actions],
         "seconds": round(time.time() - t0),
+        "cards": cards_fingerprint(),
     }
 
 
@@ -144,13 +114,55 @@ def _write(rows: list[dict], width: int) -> None:
     (OUT / "solver_bracket.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def cards_fingerprint() -> str:
+    """A short hash of every card's definition. Both ends of a bracket depend
+    on the cards — the plan must replay, and the lower bounds price every card
+    in the compendium — so a row is only reused while this matches. (Card #37
+    was corrected from 4Y->3B to 5Y->3B after the first brackets were made.)"""
+    import hashlib
+    from bots._engine import MERCHANT_CARDS, POINT_CARDS, STARTING_CARDS
+    text = repr(list(MERCHANT_CARDS) + list(POINT_CARDS) + list(STARTING_CARDS))
+    return hashlib.sha256(text.encode()).hexdigest()[:12]
+
+
+def _still_valid(row: dict) -> bool:
+    """Reuse a saved row only if it was computed from the current cards AND
+    its plan still replays to a win."""
+    if row.get("cards") != cards_fingerprint():
+        return False
+    try:
+        return replay_saved(row["seed"], row["plan"]) == row["upper"]
+    except Exception:
+        return False
+
+
+def _existing(width: int) -> dict[int, dict]:
+    path = OUT / "solver_bracket.json"
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("beam_width") != width:
+        return {}
+    return {r["seed"]: r for r in data["seeds"] if _still_valid(r)}
+
+
 if __name__ == "__main__":  # pragma: no cover - manual run
+    # python -m solver.bracket [seeds] [beam width] [workers] [first seed]
+    # Seeds already bracketed (at this width, under the current cards) are
+    # kept; results are saved after every seed, so a long run can be
+    # interrupted — or run out of memory — without losing finished work.
     n = int(sys.argv[1]) if len(sys.argv) > 1 else 10
     width = int(sys.argv[2]) if len(sys.argv) > 2 else 1000
+    workers = int(sys.argv[3]) if len(sys.argv) > 3 else 2
+    first = int(sys.argv[4]) if len(sys.argv) > 4 else 0
     t = time.time()
-    with ProcessPoolExecutor(max_workers=min(n, 10)) as pool:
-        rows = list(pool.map(bracket, range(n), [width] * n))
-    _write(rows, width)
-    for r in rows:
-        print(f"seed {r['seed']}: [{r['lower']}, {r['upper']}] gap {r['gap']}  via {r['upper_method']}  ({r['seconds']}s)")
-    print(f"wrote {OUT / 'solver_bracket.md'}  ({time.time() - t:.0f}s wall)")
+    have = _existing(width)
+    todo = [s for s in range(first, first + n) if s not in have]
+    print(f"{len(have)} valid seeds kept, {len(todo)} to do, {workers} at a time", flush=True)
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        for r in pool.map(bracket, todo, [width] * len(todo)):
+            have[r["seed"]] = r
+            _write([have[k] for k in sorted(have)], width)
+            print(f"seed {r['seed']}: [{r['lower']}, {r['upper']}] gap {r['gap']}  "
+                  f"via {r['upper_method']}  ({r['seconds']}s)", flush=True)
+    print(f"wrote {OUT / 'solver_bracket.md'}  ({len(have)} seeds, {time.time() - t:.0f}s wall)")
