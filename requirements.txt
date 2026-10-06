@@ -1,0 +1,10 @@
+# Everything the Python side needs: engine, server, bots, solver and tests.
+# The server alone only needs server/requirements.txt.
+fastapi
+uvicorn[standard]
+numpy
+scipy        # solver/flow.py (crystal-flow bound, MILP)
+cma          # bots/tune.py (CMA-ES tuning)
+pytest
+# Optional, only for regenerating card art locally (engine/make_*.py):
+# pillow
